@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-// import HomePage from './pages/HomePage';
+import HomePage from './pages/HomePage';
 import GamePage from './pages/GamePage';
+import Temp from './pages/Temp';
 // import SettingsPage from './pages/SettingsPage';
 import './index.css';
 
@@ -9,7 +10,8 @@ function App() {
     <Router>
       <div className="App">
         <Routes>
-          {/* <Route path="/" element={<HomePage />} /> */}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/temp" element={<Temp />} />
           <Route path="/game" element={<GamePage />} />
           {/* <Route path="/settings" element={<SettingsPage />} /> */}
         </Routes>
