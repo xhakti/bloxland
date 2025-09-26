@@ -1,6 +1,8 @@
 import "../App.css";
 import RotatingGlobe from "../components/ui/RotatingGlobe";
 import Gameplay from "../components/ui/Gameplay";
+import HowItWorks from "../components/ui/HowItWorks";
+import RealRewards from "../components/ui/RealRewards";
 
 const HomePage = () => {
   return (
@@ -87,9 +89,15 @@ const HomePage = () => {
          </div>
        </div>
        
-       {/* Gameplay Section */}
-       <Gameplay />
-     </div>
+      {/* Gameplay Section */}
+      <Gameplay />
+      {/* How It Works Section */}
+      <HowItWorks />
+      
+      {/* Real Rewards Section */}
+      <RealRewards />
+      
+    </div>
    );
  };
 
