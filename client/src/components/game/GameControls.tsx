@@ -8,11 +8,11 @@ const GameControls: React.FC = () => {
 
     return (
         <div className="absolute bottom-4 right-4 z-10">
-            <div className="flex flex-col space-y-2">
+            {/* <div className="flex flex-col space-y-2">
                 <Button onClick={handleSettings} variant="secondary">
                     Settings
                 </Button>
-            </div>
+            </div> */}
         </div>
     );
 };

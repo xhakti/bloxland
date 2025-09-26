@@ -7,25 +7,32 @@ import GameControls from '../components/game/GameControls';
 const GamePage: React.FC = () => {
     const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
     const [isMapReady, setIsMapReady] = useState(false);
-    const [_mapInstance, setMapInstance] = useState<any>(null);
+    const [mapInstance, setMapInstance] = useState<any>(null);
+
+    // Your provided Ready Player Me avatar URL
+    const [avatarUrl] = useState<string>(
+        'https://models.readyplayer.me/68c92d1a7a525019305da2eb.glb'
+    );
 
     const handleUserLocationChange = useCallback((location: [number, number] | null) => {
-        console.log('Location changed:', location);
+        console.log('Location changed to:', location);
         setUserLocation(location);
     }, []);
 
     const handleMapReady = useCallback((map: any) => {
-        console.log('Map ready:', map);
+        // Don't log the entire map object, just set the state
+        console.log('Map ready - avatar system initialized');
         setMapInstance(map);
         setIsMapReady(true);
     }, []);
 
     return (
         <div className="relative w-full h-screen overflow-hidden bg-gray-900">
-            {/* Map Container */}
+            {/* Map Container with Ready Player Me Avatar */}
             <MapContainer
                 onUserLocationChange={handleUserLocationChange}
                 onMapReady={handleMapReady}
+                avatarUrl={avatarUrl}
             />
 
             {/* Game UI Overlay */}
@@ -34,14 +41,6 @@ const GamePage: React.FC = () => {
                     <PlayerHUD userLocation={userLocation} />
                     <GameControls />
                 </>
-            )}
-
-            {/* Simple debug info */}
-            {import.meta.env.NODE_ENV === 'development' && (
-                <div className="absolute bottom-4 left-4 bg-black/70 text-white p-2 rounded text-xs z-10">
-                    <div>Map Ready: {isMapReady ? '✅' : '❌'}</div>
-                    <div>Has Location: {userLocation ? '✅' : '❌'}</div>
-                </div>
             )}
         </div>
     );
