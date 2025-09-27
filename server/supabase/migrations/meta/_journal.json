@@ -8,6 +8,20 @@
       "when": 1758937536293,
       "tag": "0000_special_multiple_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1758942697796,
+      "tag": "0001_stormy_enchantress",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1758942750845,
+      "tag": "0002_cute_chat",
+      "breakpoints": true
     }
   ]
 }
