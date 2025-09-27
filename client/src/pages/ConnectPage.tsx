@@ -95,8 +95,7 @@ const ConnectPage = () => {
     // If fully authenticated and connected, redirect to game
     if (isAuthenticated && isConnected && isOnCorrectNetwork) {
       log("Already authenticated and connected, redirecting to game");
-      // navigate('/game')
-      navigate("/game-integrations");
+      navigate('/game')
       return;
     }
 
@@ -248,8 +247,7 @@ const ConnectPage = () => {
 
             setTimeout(() => {
               log("Navigating to game");
-              // navigate('/game')
-              navigate("/game-integrations");
+              navigate('/game')
             }, 1500);
           } else {
             log("No existing user found, proceeding to username step");
@@ -467,7 +465,6 @@ const ConnectPage = () => {
       setShowOverlay(true);
       setTimeout(() => {
         log("Navigating to game after registration");
-        // navigate('/game')
         navigate("/game");
       }, 2000);
     } catch (error: any) {
