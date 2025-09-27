@@ -64,6 +64,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 // Main App component
 const App: React.FC = () => {
+  if (!wagmiAdapter?.wagmiConfig) {
+    return <PageLoader />;
+  }
+
   return (
     <WagmiProvider config={wagmiAdapter.wagmiConfig}>
       <QueryClientProvider client={queryClient}>
