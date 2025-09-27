@@ -13,8 +13,19 @@ const ConnectPage = React.lazy(() => import('./pages/ConnectPage'));
 
 import './index.css';
 
-// Setup queryClient
-const queryClient = new QueryClient()
+// Setup queryClient with better defaults
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 3,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+    },
+    mutations: {
+      retry: 1,
+    },
+  },
+})
 
 // Loading component
 const PageLoader = () => (

@@ -9,6 +9,7 @@ router.get("/leaderboard", userController.getLeaderboardController);
 router.post("/submit-quest/:questId", userController.submitQuestController);
 router.post("/add-claimed-rewards", userController.addClaimedRewardsController);
 router.get("/:id", userController.getUserByIdController);
+router.get("/:address", userController.getUserByAddressController);
 router.put("/:address", userController.updateUserController);
 router.post("/register", userController.registerUserController);
 export default router;
