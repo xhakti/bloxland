@@ -42,9 +42,6 @@ contract Bloxland is EIP712 {
     // Given by the entropy
     bytes32 randomNumber;
 
-    // Given by the user
-    int64 answer;
-
     // 0 no result yet
     // 1 positive result
     // -1 negative result
@@ -109,7 +106,7 @@ contract Bloxland is EIP712 {
 
     energyToken.consume(msg.sender, _energyAmount);
 
-    Play memory thePlay = Play(_gameId, msg.sender, _energyAmount, bytes32(''), 0, 0);
+    Play memory thePlay = Play(_gameId, msg.sender, _energyAmount, bytes32(''), 0);
     Game memory theGame = games[_gameId];
 
     if (bytes(theGame.name).length == 0) {
@@ -160,11 +157,11 @@ contract Bloxland is EIP712 {
     }
 
     if (theGame.random) {
-      plays[_playId].answer = _answer;
-
-      if (plays[_playId].randomNumber != 0) {
-        _gameEntropy(thePlay, uint64(_playId), plays[_playId].randomNumber);
+      if (plays[_playId].randomNumber == bytes32('')) {
+        revert("Wait until random number");
       }
+
+      _gameEntropy(thePlay, uint64(_playId), plays[_playId].randomNumber, _answer);
     } else {
       _gameOracle(thePlay, _playId, _answer);
     }
@@ -191,11 +188,7 @@ contract Bloxland is EIP712 {
       revert("Cannot process random number for not random game");
     }
 
-    if (thePlay.answer == 0) {
-      plays[sequenceNumber].randomNumber = randomNumber;
-    } else {
-      _gameEntropy(thePlay, sequenceNumber, randomNumber);
-    }
+    plays[sequenceNumber].randomNumber = randomNumber;
   }
 
   function answerWithSignature(
@@ -236,12 +229,13 @@ contract Bloxland is EIP712 {
   function _gameEntropy(
     Play memory thePlay,
     uint64 sequenceNumber,
-    bytes32 randomNumber
+    bytes32 randomNumber,
+    int64 _answer
   ) private {
     if (thePlay.gameId == GAME_RANDOM_DICE) {
       int256 diceValue = _mapRandomNumber(randomNumber, 1, 6);
 
-      if (diceValue == thePlay.answer) {
+      if (diceValue == _answer) {
         plays[sequenceNumber].result = 1;
         emit PlayEnded(sequenceNumber, 1);
       } else {
@@ -252,7 +246,7 @@ contract Bloxland is EIP712 {
       int256 randomValue = _mapRandomNumber(randomNumber, 1, 100);
 
       if (randomValue % 2 == 0) {
-        if (thePlay.answer == 1) {
+        if (_answer == 1) {
           plays[sequenceNumber].result = 1;
           emit PlayEnded(sequenceNumber, 1);
         } else {
@@ -260,7 +254,7 @@ contract Bloxland is EIP712 {
           emit PlayEnded(sequenceNumber, -1);
         }
       } else {
-        if (thePlay.answer == 1) {
+        if (_answer == 1) {
           plays[sequenceNumber].result = -1;
           emit PlayEnded(sequenceNumber, -1);
         } else {
@@ -272,7 +266,7 @@ contract Bloxland is EIP712 {
       int256 randomValue = _mapRandomNumber(randomNumber, 1, 100);
 
       if (randomValue > 50) {
-        if (thePlay.answer == 1) {
+        if (_answer == 1) {
           plays[sequenceNumber].result = 1;
           emit PlayEnded(sequenceNumber, 1);
         } else {
@@ -280,7 +274,7 @@ contract Bloxland is EIP712 {
           emit PlayEnded(sequenceNumber, -1);
         }
       } else {
-        if (thePlay.answer == 1) {
+        if (_answer == 1) {
           plays[sequenceNumber].result = -1;
           emit PlayEnded(sequenceNumber, -1);
         } else {
