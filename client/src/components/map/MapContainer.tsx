@@ -22,9 +22,38 @@ const MapContainer: React.FC<MapContainerProps> = ({
     const [isLoading, setIsLoading] = useState(true);
     const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
     const [loadingStatus, setLoadingStatus] = useState('Initializing...');
+    const [is3DMode, setIs3DMode] = useState(true);
     const isMapInitialized = useRef(false);
 
-    // Preload avatar and animations at location, then fly to it with Pokémon GO style camera
+    // Toggle between 2D and 3D view modes
+    const toggleView = () => {
+        if (!mapRef.current) return;
+
+        const map = mapRef.current;
+        const newMode = !is3DMode;
+        
+        if (newMode) {
+            // Switch to 3D mode - overhead view
+            map.flyTo({
+                pitch: 70, // High pitch for overhead 3D view
+                bearing: 0, // North-facing for consistent orientation
+                duration: 1000,
+                essential: true
+            });
+        } else {
+            // Switch to 2D mode - flat view
+            map.flyTo({
+                pitch: 0, // Flat 2D view
+                bearing: 0, // Reset bearing
+                duration: 1000,
+                essential: true
+            });
+        }
+        
+        setIs3DMode(newMode);
+    };
+
+    // Preload avatar and animations at location, then fly to it with overhead view
     const preloadAvatarAndFly = async (map: any, location: [number, number]) => {
         try {
             console.log('Preloading avatar at location:', location);
@@ -47,7 +76,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
             // Wait for avatar and animations to load
             await new Promise(resolve => setTimeout(resolve, 3000));
 
-            console.log('Avatar preloaded successfully, starting Pokémon GO style fly animation');
+            console.log('Avatar preloaded successfully, starting overhead view animation');
             setLoadingStatus('Ready!');
 
             // Small delay to show "Ready!" status
@@ -56,12 +85,12 @@ const MapContainer: React.FC<MapContainerProps> = ({
             // Hide loading screen
             setIsLoading(false);
 
-            // Pokémon GO style camera animation - flies to a position above and behind the avatar
+            // Overhead 3D view - looking down from above
             map.flyTo({
                 center: location,
-                zoom: 19, // Higher zoom for closer view like Pokémon GO
-                pitch: 65, // Tilted angle looking down at the avatar (Pokémon GO style)
-                bearing: -17.6, // Slight rotation for more dynamic view
+                zoom: 19, // High zoom for close view
+                pitch: 70, // Overhead angle looking down
+                bearing: 0, // North-facing for consistency
                 duration: 3000, // 3 second smooth animation
                 curve: 1.42, // Natural curve for the flight path
                 speed: 0.8, // Slightly slower for cinematic effect
@@ -70,7 +99,6 @@ const MapContainer: React.FC<MapContainerProps> = ({
 
             // Call onMapReady after animation starts
             setTimeout(() => {
-                // Don't log the entire map object, just indicate it's ready
                 console.log('Map and avatar system ready');
                 onMapReady?.(map);
             }, 500);
@@ -104,8 +132,8 @@ const MapContainer: React.FC<MapContainerProps> = ({
                 style: 'mapbox://styles/mapbox/standard',
                 center: [0, 0],
                 zoom: 3,
-                pitch: 60,
-                bearing: -20,
+                pitch: 70, // Start with 3D overhead view
+                bearing: 0, // North-facing
                 maxPitch: 85,
                 antialias: true
             });
@@ -127,7 +155,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
                             setUserLocation(location);
                             onUserLocationChange?.(location);
 
-                            // Preload avatar first, then fly to location
+                            // Preload avatar first, then fly to location with overhead view
                             preloadAvatarAndFly(map, location);
                         },
                         (error) => {
@@ -188,6 +216,60 @@ const MapContainer: React.FC<MapContainerProps> = ({
                 className="w-full h-full"
                 style={{ minHeight: '400px' }}
             />
+
+            {/* 2D/3D Toggle Control */}
+            <div className="absolute top-4 right-4 z-10">
+                <button
+                    onClick={toggleView}
+                    className="bg-white hover:bg-gray-50 border border-gray-300 rounded-md px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors duration-200 flex items-center gap-2"
+                    disabled={isLoading}
+                >
+                    {is3DMode ? (
+                        <>
+                            <svg 
+                                width="16" 
+                                height="16" 
+                                viewBox="0 0 24 24" 
+                                fill="none" 
+                                stroke="currentColor" 
+                                strokeWidth="2"
+                            >
+                                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                <path d="M9 9h6v6H9z"/>
+                            </svg>
+                            2D
+                        </>
+                    ) : (
+                        <>
+                            <svg 
+                                width="16" 
+                                height="16" 
+                                viewBox="0 0 24 24" 
+                                fill="none" 
+                                stroke="currentColor" 
+                                strokeWidth="2"
+                            >
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                                <polyline points="7.5,4.21 12,6.81 16.5,4.21"/>
+                                <polyline points="7.5,19.79 7.5,14.6 3,12"/>
+                                <polyline points="21,12 16.5,14.6 16.5,19.79"/>
+                            </svg>
+                            3D
+                        </>
+                    )}
+                </button>
+            </div>
+
+            {isLoading && (
+                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50">
+                    <div className="text-center space-y-6">
+                        <LoadingSpinner />
+                        <div className="text-white space-y-2">
+                            <p className="text-lg">{loadingStatus}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

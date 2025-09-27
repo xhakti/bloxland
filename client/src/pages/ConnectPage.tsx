@@ -1,17 +1,18 @@
 import "../App.css";
-import { useAppKit } from '@reown/appkit/react'
-import { useAccount, useChainId, useSwitchChain } from 'wagmi'
+import { useAccount, useChainId, useSwitchChain, useConnect } from 'wagmi'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { sepolia } from '@reown/appkit/networks'
+import { sepolia } from 'wagmi/chains'
+import { injected } from 'wagmi/connectors'
 
 const ConnectPage = () => {
-  const { open } = useAppKit()
   const { isConnected, address } = useAccount()
   const chainId = useChainId()
   const { switchChain } = useSwitchChain()
+  const { connect } = useConnect()
   const navigate = useNavigate()
   const [isConnecting, setIsConnecting] = useState(false)
+  const [showOverlay, setShowOverlay] = useState(false)
 
   // Auto-switch to Sepolia if connected but on wrong network
   useEffect(() => {
@@ -20,24 +21,31 @@ const ConnectPage = () => {
     }
   }, [isConnected, chainId, switchChain])
 
-  // Redirect to game if wallet is connected and on correct network
+  // Show overlay and redirect to game if wallet is connected and on correct network
   useEffect(() => {
     if (isConnected && chainId === sepolia.id) {
+      setShowOverlay(true)
       setTimeout(() => {
         navigate('/game')
-      }, 2000) // Give user time to see connection success
+      }, 3000) // Give user time to see connection success and overlay
     }
   }, [isConnected, chainId, navigate])
 
   const handleConnect = async () => {
     setIsConnecting(true)
     try {
-      await open()
+      await connect({ connector: injected() })
     } catch (error) {
       console.error('Connection failed:', error)
     } finally {
       setIsConnecting(false)
     }
+  }
+
+  // Format address to show first 5 and last 4 characters
+  const formatAddress = (addr: string) => {
+    if (!addr) return '0x343...2342'
+    return `${addr.slice(0, 5)}...${addr.slice(-4)}`
   }
   return (
     <div
@@ -69,11 +77,6 @@ const ConnectPage = () => {
               : 'Connect your Web3 wallet to start your adventure in Bloxland and earn crypto rewards.'
             }
           </p>
-          {isConnected && address && (
-            <p className="text-sm text-gray-300 break-all">
-              Address: {address}
-            </p>
-          )}
         </div>
         
         {/* Connect Wallet Button */}
@@ -94,6 +97,32 @@ const ConnectPage = () => {
           )}
         </div>
       </div>
+
+      {/* Address Overlay */}
+      {showOverlay && isConnected && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-black/70 text-white p-6 rounded-lg backdrop-blur-sm border border-white/20 max-w-md mx-4">
+            <div className="text-center space-y-4">
+              <h3 className="text-xl font-semibold">Wallet Connected!</h3>
+              <div className="space-y-2">
+                <p className="text-sm text-gray-300">Your Address:</p>
+                <p className="text-lg font-mono bg-white/10 px-3 py-2 rounded border">
+                  {formatAddress(address || '')}
+                </p>
+              </div>
+              <p className="text-sm text-gray-400">
+                Redirecting to game in a moment...
+              </p>
+              <button 
+                onClick={() => setShowOverlay(false)}
+                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
