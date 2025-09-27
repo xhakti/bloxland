@@ -1,6 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { AvatarLayer } from '../player/AvatarLayer';
@@ -24,7 +22,6 @@ const MapContainer: React.FC<MapContainerProps> = ({
     const [isLoading, setIsLoading] = useState(true);
     const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
     const [loadingStatus, setLoadingStatus] = useState('Initializing...');
-    const [is3DMode, setIs3DMode] = useState(true);
     const [isFollowingUser, setIsFollowingUser] = useState(false);
     const [mapStyle, setMapStyle] = useState('mapbox://styles/mapbox/standard');
     const isMapInitialized = useRef(false);
@@ -39,70 +36,6 @@ const MapContainer: React.FC<MapContainerProps> = ({
         { name: 'Dark', value: 'mapbox://styles/mapbox/dark-v11' }
     ];
 
-    // Toggle between 2D and 3D view modes
-    const toggleView = () => {
-        if (!mapRef.current) return;
-
-        const map = mapRef.current;
-        const newMode = !is3DMode;
-
-        if (newMode) {
-            // Switch to 3D mode - overhead view
-            map.flyTo({
-                pitch: 70, // High pitch for overhead 3D view
-                bearing: 0, // North-facing for consistent orientation
-                duration: 1000,
-                essential: true
-            });
-        } else {
-            // Switch to 2D mode - flat view
-            map.flyTo({
-                pitch: 0, // Flat 2D view
-                bearing: 0, // Reset bearing
-                duration: 1000,
-                essential: true
-            });
-        }
-
-        setIs3DMode(newMode);
-    };
-
-    // Locate user function
-    const locateUser = () => {
-        if (!mapRef.current || !geolocateControlRef.current) return;
-        // Trigger the geolocate control
-        geolocateControlRef.current.trigger();
-    };
-
-    // Toggle user tracking
-    const toggleUserTracking = () => {
-        if (!mapRef.current || !geolocateControlRef.current) return;
-
-        if (isFollowingUser) {
-            // Stop tracking
-            (geolocateControlRef.current as any)._updateCamera = false;
-            setIsFollowingUser(false);
-        } else {
-            // Start tracking
-            (geolocateControlRef.current as any)._updateCamera = true;
-            locateUser();
-            setIsFollowingUser(true);
-        }
-    };
-
-    // Reset map to initial view
-    const resetMapView = () => {
-        if (!mapRef.current || !userLocation) return;
-
-        mapRef.current.flyTo({
-            center: userLocation,
-            zoom: 19,
-            pitch: is3DMode ? 70 : 0,
-            bearing: 0,
-            duration: 2000,
-            essential: true
-        });
-    };
 
     // Change map style
     const changeMapStyle = (styleUrl: string) => {
@@ -124,7 +57,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
     };
 
     // Preload avatar and animations at location, then fly to it with overhead view
-    const preloadAvatarAndFly = async (map: any, location: [number, number]) => {
+    const preloadAvatarAndFly = useCallback(async (map: any, location: [number, number]) => {
         try {
             console.log('Preloading avatar at location:', location);
             setLoadingStatus('Loading avatar...');
@@ -179,7 +112,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
             setIsLoading(false);
             onMapReady?.(map);
         }
-    };
+    }, [avatarUrl, onMapReady]);
 
     useEffect(() => {
         if (!mapContainerRef.current || isMapInitialized.current) return;
@@ -327,65 +260,15 @@ const MapContainer: React.FC<MapContainerProps> = ({
             geolocateControlRef.current = null;
             isMapInitialized.current = false;
         };
-    }, [avatarUrl, mapStyle]);
+    }, [avatarUrl, mapStyle, onUserLocationChange, preloadAvatarAndFly]);
 
     return (
         <div className="relative w-full h-full">
             {/* Map Container */}
             <div ref={mapContainerRef} className="w-full h-full" />
 
-            {/* Custom Controls Panel - Tailwind Classes */}
-            <div className="absolute top-5 left-5 z-[1000] flex flex-col gap-2 max-w-[120px]">
-                {/* 2D/3D Toggle Control */}
-                <button
-                    onClick={toggleView}
-                    className="bg-white/95 border border-black/10 rounded-md px-3 py-2 text-xs font-semibold text-gray-700 cursor-pointer transition-all duration-200 flex items-center gap-1 shadow-sm backdrop-blur-sm hover:bg-white hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                    disabled={isLoading}
-                    aria-label={`Switch to ${is3DMode ? '2D' : '3D'} view`}
-                >
-                    <span className="text-sm">
-                        {is3DMode ? '🗺️' : '🏗️'}
-                    </span>
-                    {is3DMode ? '2D' : '3D'}
-                </button>
-
-                {/* Quick locate user button */}
-                <button
-                    onClick={locateUser}
-                    className="bg-white/95 border border-black/10 rounded-md px-3 py-2 text-xs font-semibold text-gray-700 cursor-pointer transition-all duration-200 flex items-center gap-1 shadow-sm backdrop-blur-sm hover:bg-white hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                    disabled={isLoading}
-                    aria-label="Locate current position"
-                >
-                    <span className="text-sm">📍</span>
-                    Locate
-                </button>
-
-                {/* User tracking toggle */}
-                <button
-                    onClick={toggleUserTracking}
-                    className={`bg-white/95 border border-black/10 rounded-md px-3 py-2 text-xs font-semibold cursor-pointer transition-all duration-200 flex items-center gap-1 shadow-sm backdrop-blur-sm hover:bg-white hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${isFollowingUser
-                        ? 'bg-blue-500/90 text-white border-blue-500/30'
-                        : 'text-gray-700'
-                        }`}
-                    disabled={isLoading}
-                    aria-label={`${isFollowingUser ? 'Stop' : 'Start'} following user location`}
-                >
-                    <span className="text-sm">👁️</span>
-                    {isFollowingUser ? 'Following' : 'Follow'}
-                </button>
-
-                {/* Reset view button */}
-                <button
-                    onClick={resetMapView}
-                    className="bg-white/95 border border-black/10 rounded-md px-3 py-2 text-xs font-semibold text-gray-700 cursor-pointer transition-all duration-200 flex items-center gap-1 shadow-sm backdrop-blur-sm hover:bg-white hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                    disabled={isLoading || !userLocation}
-                    aria-label="Reset map view to initial position"
-                >
-                    <span className="text-sm">🔄</span>
-                    Reset
-                </button>
-
-                {/* Map Style Selector */}
+            {/* Map Style Selector */}
+            <div className="absolute bottom-4 right-4 z-10">
                 <select
                     value={mapStyle}
                     onChange={(e) => changeMapStyle(e.target.value)}
