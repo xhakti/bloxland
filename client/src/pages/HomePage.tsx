@@ -1,5 +1,8 @@
 import "../App.css";
 import RotatingGlobe from "../components/ui/RotatingGlobe";
+import Gameplay from "../components/ui/Gameplay";
+import HowItWorks from "../components/ui/HowItWorks";
+import RealRewards from "../components/ui/RealRewards";
 
 const HomePage = () => {
   return (
@@ -30,23 +33,23 @@ const HomePage = () => {
                <div className="flex-1 flex flex-col justify-center space-y-4 sm:space-y-6 px-6 sm:px-8">
                  <div className="space-y-3 sm:space-y-4 text-center">
                    <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight">
-                     Move. Explore. Earn.
+                     Walk. Discover. Collect.
                    </h1>
                    <p className="text-base sm:text-lg text-white leading-relaxed max-w-md mx-auto px-2">
-                     The first Web3 game where your physical movement powers your digital adventure in a real world.
+                     The revolutionary Web3 game where your real-world steps unlock digital treasures at every checkpoint.
                    </p>
                    <p className="text-sm sm:text-base text-white max-w-sm mx-auto px-2">
-                     Step into the future of gaming where every step you take in the real world translates to rewards in the digital realm.
+                     Explore your city, complete challenges, and earn crypto rewards while building your unique avatar collection.
                    </p>
                  </div>
                 
                  {/* Buttons - Mobile */}
                  <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 mt-6 sm:mt-8 px-4 sm:px-0 sm:justify-center">
                    <button className="px-6 sm:px-8 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 active:scale-95">
-                     Start Adventure
+                     Start Exploring
                    </button>
                    <button className="px-6 sm:px-8 py-3 border border-white text-white font-semibold rounded-lg hover:bg-white hover:text-black transition-all duration-300">
-                     Learn More
+                     View Rewards
                    </button>
                  </div>
               </div>
@@ -60,21 +63,21 @@ const HomePage = () => {
                <div className="flex flex-col justify-center space-y-6 px-8 xl:px-12">
                  <div className="space-y-4">
                    <h1 className="text-4xl xl:text-6xl font-bold text-white leading-tight">
-                     Move. Explore. Earn.
+                     Walk. Discover. Collect.
                    </h1>
                    <p className="text-lg xl:text-xl text-white leading-relaxed pr-4">
-                     The first Web3 game where your physical movement powers your digital adventure in a real world.
+                     The revolutionary Web3 game where your real-world steps unlock digital treasures at every checkpoint.
                    </p>
                    <p className="text-base xl:text-lg text-white pr-4">
-                     Step into the future of gaming where every step you take in the real world translates to rewards in the digital realm.
+                     Explore your city, complete challenges, and earn crypto rewards while building your unique avatar collection.
                    </p>
                  </div>
                  <div className="flex space-x-4 mt-8">
                    <button className="px-8 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105">
-                     Start Adventure
+                     Start Exploring
                    </button>
                    <button className="px-8 py-3 border border-white text-white font-semibold rounded-lg hover:bg-white hover:text-black transition-all duration-300">
-                     Learn More
+                     View Rewards
                    </button>
                  </div>
               </div>
@@ -82,11 +85,20 @@ const HomePage = () => {
                 <RotatingGlobe />
               </div>
             </div>
-          </div>
-        </div>
-      </div>
+           </div>
+         </div>
+       </div>
+       
+      {/* Gameplay Section */}
+      <Gameplay />
+      {/* How It Works Section */}
+      <HowItWorks />
+      
+      {/* Real Rewards Section */}
+      <RealRewards />
+      
     </div>
-  );
-};
+   );
+ };
 
 export default HomePage;
