@@ -11,3 +11,4 @@ router.put("/add-winner/:questId", partnerController.addQuestWinnersController);
 router.get("/quests/:partnerAddress", partnerController.getPartnerQuestsController);
 
 export default router;
+

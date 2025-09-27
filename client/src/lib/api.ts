@@ -290,6 +290,22 @@ class ApiClient {
   async healthCheck(): Promise<ApiResponse<{ status: string }>> {
     return this.get<{ status: string }>("/health");
   }
+
+  // Signatures API
+  async getEnergizeSignature(body: {
+    player: string;
+    amount: string; // bigint string in wei
+  }): Promise<ApiResponse<{ signature: string }>> {
+    return this.post("/user/signatures/energize", body);
+  }
+
+  async getPlayAnswerSignature(body: {
+    playId: string; // bigint string
+    player: string;
+    answer: string; // int64 string
+  }): Promise<ApiResponse<{ signature: string }>> {
+    return this.post("/user/signatures/play-answer", body);
+  }
 }
 
 // Export singleton instance

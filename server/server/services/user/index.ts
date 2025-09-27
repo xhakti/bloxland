@@ -5,6 +5,7 @@ import { addClaimedRewardsService } from "./addClaimedRewards";
 import { updateUserService } from "./updateUser";
 import { registerUserService } from "./registerUser";
 import { getUserByAddress } from "../../db/queries/users";
+export * as SignatureService from "./signatures";
 export {
   getUserByIdService,
   getLeaderboardService,

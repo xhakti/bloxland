@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useAccount, useChainId } from "wagmi";
-import { sepolia } from "wagmi/chains";
+import { baseSepolia, sepolia } from "wagmi/chains";
 import React from "react";
 
 // Type for data that gets persisted to localStorage
@@ -76,7 +76,7 @@ export const useAuthStore = create<AuthState>()(
 
       // Actions
       setWalletConnection: (connected, address, chainId) => {
-        const isOnCorrectNetwork = chainId === sepolia.id;
+        const isOnCorrectNetwork = chainId === sepolia.id || chainId === baseSepolia.id;
 
         set({
           isConnected: connected,

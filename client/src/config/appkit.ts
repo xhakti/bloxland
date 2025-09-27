@@ -1,19 +1,12 @@
 import { createAppKit } from "@reown/appkit/react";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
-import {
-  mainnet,
-  arbitrum,
-  polygon,
-  optimism,
-  base,
-  sepolia,
-} from "@reown/appkit/networks";
+import { baseSepolia, sepolia } from "@reown/appkit/networks";
 
 // 1. Get projectId from https://cloud.reown.com
 const projectId = import.meta.env.VITE_REOWN_PROJECT_ID;
 
 // 2. Set the networks (Sepolia first as default)
-const networks = [sepolia, mainnet, arbitrum, polygon, optimism, base];
+const networks = [baseSepolia, sepolia];
 
 // 3. Create Wagmi Adapter with optimized settings
 const wagmiAdapter = new WagmiAdapter({
@@ -25,9 +18,9 @@ const wagmiAdapter = new WagmiAdapter({
 // 4. Create modal with mobile-optimized settings
 createAppKit({
   adapters: [wagmiAdapter],
-  networks: [sepolia],
+  networks: [baseSepolia, sepolia],
   projectId,
-  defaultNetwork: sepolia,
+  defaultNetwork: baseSepolia, // Set Sepolia as default network
   metadata: {
     name: "Bloxland",
     description: "Walk. Discover. Collect. - A Web3 adventure game",

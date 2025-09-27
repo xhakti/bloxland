@@ -1,256 +1,596 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAccount, useDisconnect, useEnsName } from 'wagmi';
-import { useAppKit } from '@reown/appkit/react';
-import { useAuthStore } from '../stores/authStore';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
+import {
+  useAccount,
+  useChainId,
+  useSwitchChain,
+  useConnect,
+  useSignMessage,
+} from "wagmi";
+import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { baseSepolia, sepolia } from "wagmi/chains";
+import { injected } from "wagmi/connectors";
+import { useAuthStore } from "../stores/authStore";
+import { useUserRegistrationFlow, getErrorMessage } from "../hooks/useApi";
+import { apiClient } from "../lib/api";
+import type { ApiError, User } from "../lib/api";
 
-// Debounce utility function
-function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
-  let timeout: NodeJS.Timeout;
-  return ((...args: any[]) => {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  }) as T;
+type AuthStep = "connect" | "sign" | "verify" | "username" | "complete";
+
+interface AuthState {
+  step: AuthStep;
+  isLoading: boolean;
+  error: string;
+  existingUser: User | null;
+  username: string;
 }
 
-// Mobile detection utility
-const isMobile = () => {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-};
-
-// Request queue class to prevent spam
-class RequestQueue {
-  private queue: (() => Promise<any>)[] = [];
-  private processing = false;
-  private lastRequest = 0;
-  private minInterval = 2000; // 2 seconds between requests
-
-  async add<T>(request: () => Promise<T>): Promise<T> {
-    return new Promise((resolve, reject) => {
-      this.queue.push(async () => {
-        try {
-          const now = Date.now();
-          if (now - this.lastRequest < this.minInterval) {
-            await new Promise(resolveDelay =>
-              setTimeout(resolveDelay, this.minInterval - (now - this.lastRequest))
-            );
-          }
-
-          const result = await request();
-          this.lastRequest = Date.now();
-          resolve(result);
-        } catch (error) {
-          reject(error);
-        }
-      });
-
-      this.processQueue();
-    });
-  }
-
-  private async processQueue() {
-    if (this.processing || this.queue.length === 0) return;
-
-    this.processing = true;
-    while (this.queue.length > 0) {
-      const request = this.queue.shift()!;
-      await request();
-    }
-    this.processing = false;
-  }
-}
-
-const ConnectPage: React.FC = () => {
+const ConnectPage = () => {
+  const { isConnected, address } = useAccount();
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
+  const { connect } = useConnect();
   const navigate = useNavigate();
-  const { open } = useAppKit();
-  const { address, isConnected } = useAccount();
-  const { disconnect } = useDisconnect();
-  const { data: ensName } = useEnsName({ address });
-
-  // Use the correct auth store properties based on your actual store
   const {
-    isAuthenticated,
-    address: storedAddress,
-    username,
-    ensName: storedEnsName,
     setAuthentication,
-    logout,
-    setLoading,
+    isAuthenticated,
+    isOnCorrectNetwork,
+    refreshAuth,
+    hasSigned,
+    setHasSigned,
   } = useAuthStore();
 
-  // Local state to manage UI steps and errors (since they don't exist in your auth store)
+  // Consolidated auth state
+  const [authState, setAuthState] = useState<AuthState>({
+    step: "connect",
+    isLoading: false,
+    error: "",
+    existingUser: null,
+    username: "",
+  });
+
+  const [showOverlay, setShowOverlay] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [connectionAttempts, setConnectionAttempts] = useState(0);
-  const [error, setError] = useState('');
-  const [step, setStep] = useState<'connecting' | 'verifying' | 'registering' | 'redirecting'>('connecting');
 
-  const requestQueue = useRef(new RequestQueue());
-  const connectionTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  // API registration hook
+  const {
+    registerUser,
+    isLoading: isRegistering,
+    error: registrationError,
+    reset: resetRegistration,
+  } = useUserRegistrationFlow();
 
-  // Connection handler
-  const connectWallet = useCallback(async () => {
-    if (isConnecting || connectionAttempts >= 3) return;
+  const {
+    signMessage,
+    data: signature,
+    isPending: isSignPending,
+    error: signError,
+  } = useSignMessage();
 
-    setIsConnecting(true);
-    setConnectionAttempts(prev => prev + 1);
-    setError('');
+  // Debug logging
+  const log = useCallback((message: string, data?: any) => {
+    console.log(`[ConnectPage] ${message}`, data || "");
+  }, []);
 
-    try {
-      await requestQueue.current.add(async () => {
-        if (isMobile() && (window as any).ethereum?.isMetaMask) {
-          // Direct MetaMask connection for mobile
-          await (window as any).ethereum.request({
-            method: 'eth_requestAccounts'
-          });
-        } else {
-          await open();
-        }
-      });
-    } catch (error: any) {
-      console.error('Connection failed:', error);
-      setError(`Connection failed: ${error.message || 'Unknown error'}`);
-    } finally {
-      setIsConnecting(false);
-    }
-  }, [isConnecting, connectionAttempts, open]);
+  // Check if already authenticated on page load
+  useEffect(() => {
+    // First, refresh auth state to clear any expired sessions
+    refreshAuth();
 
-  // Handle mobile deep-link connection
-  const handleMobileConnection = useCallback(async () => {
-    if (!isMobile()) {
-      connectWallet();
+    // Get the current auth state from store after refresh
+    const authStore = useAuthStore.getState();
+
+    log("Checking persisted auth state", {
+      isAuthenticated,
+      isConnected,
+      isOnCorrectNetwork,
+      hasSigned,
+      hasStoredAuth: authStore.isAuthenticated,
+      hasAddress: !!authStore.address,
+      hasSignature: !!authStore.signature,
+      hasUsername: !!authStore.username,
+    });
+
+    // If fully authenticated and connected, redirect to game
+    if (isAuthenticated && isConnected && isOnCorrectNetwork) {
+      log("Already authenticated and connected, redirecting to game");
+      // navigate('/game')
+      navigate("/game-integrations");
       return;
     }
 
-    try {
-      setIsConnecting(true);
+    // If we have persisted valid auth, wait for wallet connection
+    if (authStore.isAuthenticated && !isConnected) {
+      log(
+        "Have valid persisted auth but wallet not connected, waiting for connection"
+      );
+      setAuthState((prev) => ({ ...prev, step: "connect", error: "" }));
+      return;
+    }
 
-      // Check if MetaMask is available
-      if ((window as any).ethereum?.isMetaMask) {
-        await (window as any).ethereum.request({
-          method: 'eth_requestAccounts'
-        });
-      } else {
-        // Fallback to WalletConnect for mobile
-        const metamaskUrl = `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}`;
-        window.open(metamaskUrl, '_blank');
+    // If connected but not authenticated, start fresh auth flow
+    if (isConnected && !isAuthenticated) {
+      log("Wallet connected but not authenticated, starting fresh auth flow");
+    }
+  }, [
+    isAuthenticated,
+    isConnected,
+    isOnCorrectNetwork,
+    hasSigned,
+    navigate,
+    log,
+    refreshAuth,
+  ]);
 
-        // Set timeout for mobile connection
-        connectionTimeoutRef.current = setTimeout(() => {
-          setError('Connection timeout. Please try again.');
-          setIsConnecting(false);
-        }, 30000);
+  // Auto-switch to Base Sepolia if connected but on wrong network only if not already on Sepolia
+  useEffect(() => {
+    if (isConnected && chainId !== baseSepolia.id && chainId !== sepolia.id) {
+      log("Switching to Base Sepolia network");
+      switchChain({ chainId: baseSepolia.id });
+    }
+  }, [isConnected, chainId, switchChain, log]);
+
+  // Main auth flow controller
+  useEffect(() => {
+    log("Auth flow check", {
+      isConnected,
+      chainId,
+      baseSepolia: baseSepolia.id,
+      sepolia: sepolia.id,
+      signature: !!signature,
+      address,
+      currentStep: authState.step,
+    });
+
+    if (!isConnected) {
+      log("Not connected, setting step to connect");
+      setAuthState((prev) => ({ ...prev, step: "connect", error: "" }));
+      return;
+    }
+
+    if (chainId !== baseSepolia.id && chainId !== sepolia.id) {
+      log("Wrong network, staying on connect");
+      return;
+    }
+
+    if (authState.step === "connect") {
+      // Check if wallet has been signed before and we have the same address
+      const storedAddress = useAuthStore.getState().address;
+      if (hasSigned && address && storedAddress === address) {
+        log(
+          "Wallet already signed before with same address, skipping to verification"
+        );
+        setAuthState((prev) => ({ ...prev, step: "verify", error: "" }));
+        return;
+      } else if (hasSigned && address && storedAddress !== address) {
+        log(
+          "Wallet signed before but different address, requiring new signature"
+        );
+        setHasSigned(false); // Reset hasSigned for new address
       }
-    } catch (error: any) {
-      console.error('Mobile connection failed:', error);
-      setError(`Mobile connection failed: ${error.message}`);
+
+      log("Moving to sign step");
+      setAuthState((prev) => ({ ...prev, step: "sign", error: "" }));
+      return;
+    }
+
+    // Handle verification step - either from signing or from skipped signing (hasSigned=true)
+    if (
+      (signature && address && authState.step === "sign") ||
+      (hasSigned && address && authState.step === "verify")
+    ) {
+      log(
+        signature
+          ? "Signature received, starting verification"
+          : "Skipped signing (already signed), starting verification"
+      );
+      // Call verification inline
+      const doVerify = async () => {
+        if (!address) {
+          log("Missing address for verification");
+          return;
+        }
+
+        // If we don't have a signature but hasSigned is true, we can proceed with stored auth
+        if (!signature && !hasSigned) {
+          log("Missing signature and wallet not signed before");
+          return;
+        }
+
+        log("Starting user verification for address:", address);
+
+        setAuthState((prev) => ({
+          ...prev,
+          step: "verify",
+          isLoading: true,
+          error: "",
+        }));
+
+        try {
+          const response = await apiClient.getUserByAddress(address);
+          log("API Response received:", response);
+
+          const userData = response.data;
+
+          if (userData && userData.id) {
+            log("Existing user found:", userData);
+
+            const resolvedUsername = userData.username?.trim() || "explorer";
+            const normalizedUsername = resolvedUsername.toLowerCase();
+            const resolvedEnsName =
+              userData.subDomainName || `${normalizedUsername}.bloxland.eth`;
+
+            setAuthState((prev) => ({
+              ...prev,
+              step: "complete",
+              isLoading: false,
+              existingUser: userData,
+              username: normalizedUsername,
+              error: "",
+            }));
+
+            // Set authentication in store
+            // Use current signature or stored signature if hasSigned is true
+            const authSignature =
+              signature ||
+              useAuthStore.getState().signature ||
+              `signed-${address}-${Date.now()}`;
+            setAuthentication({
+              address: userData.userAddress,
+              signature: authSignature,
+              username: normalizedUsername,
+              ensName: resolvedEnsName,
+            });
+
+            log("Authentication set for existing user, showing overlay");
+            setShowOverlay(true);
+
+            setTimeout(() => {
+              log("Navigating to game");
+              // navigate('/game')
+              navigate("/game-integrations");
+            }, 1500);
+          } else {
+            log("No existing user found, proceeding to username step");
+            setAuthState((prev) => ({
+              ...prev,
+              step: "username",
+              isLoading: false,
+              existingUser: null,
+              error: "",
+            }));
+          }
+        } catch (error) {
+          log("Error during user verification:", error);
+
+          const apiError = error as ApiError;
+
+          if (apiError?.status === 404) {
+            log("User not found (404), proceeding to username step");
+            setAuthState((prev) => ({
+              ...prev,
+              step: "username",
+              isLoading: false,
+              existingUser: null,
+              error: "",
+            }));
+          } else {
+            log("API error during verification:", apiError);
+            setAuthState((prev) => ({
+              ...prev,
+              step: "username",
+              isLoading: false,
+              error:
+                getErrorMessage(apiError) ||
+                "Verification failed, proceeding to registration",
+            }));
+          }
+        }
+      };
+
+      doVerify();
+    }
+  }, [
+    isConnected,
+    chainId,
+    signature,
+    address,
+    authState.step,
+    hasSigned,
+    log,
+    setAuthentication,
+    setHasSigned,
+    navigate,
+  ]);
+
+  // Create authentication message
+  const message = `Welcome to BLOXLAND!\n\nPlease sign this message to authenticate and start your adventure.\n\nTimestamp: ${Date.now()}\nAddress: ${address}\nChain: Sepolia Testnet`;
+
+  const handleConnect = async () => {
+    setIsConnecting(true);
+    setAuthState((prev) => ({ ...prev, error: "" }));
+    try {
+      await connect({ connector: injected() });
+      log("Wallet connected successfully");
+    } catch (error) {
+      log("Connection failed:", error);
+      setAuthState((prev) => ({
+        ...prev,
+        error: "Failed to connect wallet. Please try again.",
+      }));
+    } finally {
       setIsConnecting(false);
     }
-  }, [connectWallet]);
+  };
 
-  // Effect to handle connection state changes
+  const handleSign = async () => {
+    if (!address) return;
+
+    setAuthState((prev) => ({ ...prev, isLoading: true, error: "" }));
+    try {
+      signMessage({ message });
+      log("Sign message initiated");
+    } catch (error) {
+      log("Signing failed:", error);
+      setAuthState((prev) => ({
+        ...prev,
+        error: "Signing failed. Please try again.",
+      }));
+    } finally {
+      setAuthState((prev) => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  // Username validation
+  const validateUsername = (username: string) => {
+    if (!username) return "Username is required";
+    if (username.length < 3) return "Username must be at least 3 characters";
+    if (username.length > 20) return "Username must be less than 20 characters";
+    if (!/^[a-zA-Z0-9_-]+$/.test(username))
+      return "Username can only contain letters, numbers, hyphens, and underscores";
+    if (username.startsWith("-") || username.endsWith("-"))
+      return "Username cannot start or end with a hyphen";
+    return null;
+  };
+
+  // Reset registration error when username changes
   useEffect(() => {
-    if (isConnected && address) {
-      clearTimeout(connectionTimeoutRef.current);
-      setStep('verifying');
+    if (registrationError) {
+      resetRegistration();
+    }
+  }, [authState.username, registrationError, resetRegistration]);
 
-      // Simulate verification process
+  const handleUsernameChange = (newUsername: string) => {
+    setAuthState((prev) => ({
+      ...prev,
+      username: newUsername.toLowerCase(),
+      error: "",
+    }));
+  };
+
+  const handleUsernameSubmit = async () => {
+    const sanitizedUsername = authState.username.trim().toLowerCase();
+    const validationError = validateUsername(sanitizedUsername);
+
+    if (validationError) {
+      setAuthState((prev) => ({ ...prev, error: validationError }));
+      return;
+    }
+
+    if (!address) {
+      setAuthState((prev) => ({
+        ...prev,
+        error: "Address missing. Please try again.",
+      }));
+      return;
+    }
+
+    // Get signature from current state or stored state if hasSigned
+    const authSignature =
+      signature ||
+      useAuthStore.getState().signature ||
+      `signed-${address}-${Date.now()}`;
+    if (!authSignature) {
+      setAuthState((prev) => ({
+        ...prev,
+        error: "Authentication signature missing. Please try again.",
+      }));
+      return;
+    }
+
+    log("Starting user registration for username:", sanitizedUsername);
+    setAuthState((prev) => ({ ...prev, isLoading: true, error: "" }));
+
+    try {
+      // Register user with the API
+      const registrationResponse = await registerUser({
+        address,
+        username: sanitizedUsername,
+        email: undefined,
+        referrer: undefined,
+      });
+
+      log("User registered successfully:", registrationResponse);
+
+      // Store authentication in Zustand store
+      setAuthentication({
+        address: address!,
+        signature: authSignature,
+        username: sanitizedUsername,
+        ensName: `${sanitizedUsername}.bloxland.eth`,
+      });
+
+      setAuthState((prev) => ({
+        ...prev,
+        step: "complete",
+        isLoading: false,
+        username: sanitizedUsername,
+        error: "",
+      }));
+
+      setShowOverlay(true);
       setTimeout(() => {
-        setStep('registering');
+        log("Navigating to game after registration");
+        // navigate('/game')
+        navigate("/game-integrations");
+      }, 2000);
+    } catch (error: any) {
+      log("User registration failed:", error);
 
-        // Use your actual store's setAuthentication method
-        setAuthentication({
-          address: address,
-          signature: 'mock-signature', // You'll need to implement actual signing
-          username: username || address.slice(0, 8),
-          ensName: ensName || storedEnsName || `${username || address.slice(0, 8)}.bloxland.eth`,
-        });
+      let errorMessage = "Registration failed. Please try again.";
 
-        setStep('redirecting');
-        setIsConnecting(false);
-        setConnectionAttempts(0);
+      if (
+        error.message?.includes("username") ||
+        error.message?.includes("taken") ||
+        error.message?.includes("exists")
+      ) {
+        errorMessage = "Username is already taken. Please try another.";
+      } else if (
+        error.message?.includes("address") ||
+        error.message?.includes("wallet")
+      ) {
+        errorMessage =
+          "This wallet address is already registered. Please use a different address.";
+      } else {
+        errorMessage = getErrorMessage(error) || errorMessage;
+      }
 
-        // Auto-redirect after successful connection
-        setTimeout(() => {
-          navigate('/game');
-        }, 2000);
-      }, 1500);
+      setAuthState((prev) => ({
+        ...prev,
+        error: errorMessage,
+        isLoading: false,
+      }));
     }
-  }, [isConnected, address, ensName, username, storedEnsName, setAuthentication, navigate]);
-
-  // Reset connection attempts after 5 minutes
-  useEffect(() => {
-    if (connectionAttempts > 0) {
-      const resetTimer = setTimeout(() => {
-        setConnectionAttempts(0);
-      }, 5 * 60 * 1000); // 5 minutes
-
-      return () => clearTimeout(resetTimer);
-    }
-  }, [connectionAttempts]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      clearTimeout(connectionTimeoutRef.current);
-    };
-  }, []);
+  };
 
   const formatAddress = (addr: string) => {
-    if (!addr) return '';
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+    if (!addr) return "0x343...2342";
+    return `${addr.slice(0, 5)}...${addr.slice(-4)}`;
+  };
+
+  const getTitle = () => {
+    switch (authState.step) {
+      case "connect":
+        return "Connect Your Wallet";
+      case "sign":
+        return "Sign to Authenticate";
+      case "verify":
+        return authState.existingUser
+          ? "Welcome Back, Explorer!"
+          : "Verifying Your Account";
+      case "username":
+        return "Choose Your Username";
+      case "complete":
+        return authState.existingUser
+          ? "Welcome Back to Bloxland!"
+          : "Welcome to Bloxland!";
+      default:
+        return "Connect Your Wallet";
+    }
   };
 
   const getDescription = () => {
-    switch (step) {
-      case 'connecting':
-        return 'Connect your wallet to enter the game';
-      case 'verifying':
-        return 'Verifying your wallet connection...';
-      case 'registering':
-        return 'Setting up your game profile...';
-      case 'redirecting':
-        return 'Connection successful! Loading game...';
+    switch (authState.step) {
+      case "connect":
+        return "Connect your Web3 wallet to start your adventure in Bloxland and earn crypto rewards.";
+      case "sign":
+        return "Please sign the message to complete authentication and access the game securely.";
+      case "verify":
+        return authState.existingUser
+          ? "We found your account. Preparing your world..."
+          : "Hold tight while we check if you already have a Bloxland profile.";
+      case "username":
+        return "Choose a unique username for your Bloxland ENS domain. This will be your identity in the game.";
+      case "complete":
+        return authState.existingUser
+          ? "Everything is ready. Taking you back into the action!"
+          : `Your ENS domain ${getEnsDisplayName()} is ready! Redirecting to your adventure...`;
       default:
-        return 'Connect your wallet to start your Web3 adventure';
+        return "Connect your Web3 wallet to start your adventure in Bloxland and earn crypto rewards.";
+    }
+  };
+
+  const getButtonText = () => {
+    if (isConnecting) return "Connecting...";
+    if (authState.isLoading && authState.step === "sign") return "Signing...";
+    if (authState.isLoading && authState.step === "verify")
+      return "Verifying account...";
+    if (authState.isLoading && authState.step === "username")
+      return "Creating account...";
+    if (isSignPending) return "Signing...";
+    if (isRegistering) return "Creating account...";
+
+    switch (authState.step) {
+      case "connect":
+        return "Connect Wallet";
+      case "sign":
+        return "Sign Message";
+      case "verify":
+        return "Verifying account...";
+      case "username":
+        return "Claim Username";
+      case "complete":
+        return "Welcome to Bloxland! ✓";
+      default:
+        return "Connect Wallet";
     }
   };
 
   const getCurrentError = () => {
-    if (error) return error;
-    if (connectionAttempts >= 3) return 'Too many connection attempts. Please wait and try again.';
-    return '';
+    if (signError) return "Signing failed. Please try again.";
+    if (authState.error) return authState.error;
+    if (registrationError) return getErrorMessage(registrationError);
+    return "";
   };
 
   const getEnsDisplayName = () => {
-    if (ensName) return ensName;
-    if (storedEnsName) return storedEnsName;
-    if (username) return `${username}.bloxland.eth`;
-    return null;
+    return (
+      authState.existingUser?.subDomainName ??
+      (authState.username ? `${authState.username}.bloxland.eth` : "")
+    );
   };
 
-  const handleDisconnect = useCallback(async () => {
-    try {
-      await disconnect();
-      logout();
-      setError('');
-      setConnectionAttempts(0);
-      setStep('connecting');
-    } catch (error: any) {
-      console.error('Disconnect failed:', error);
+  const handleButtonClick = () => {
+    switch (authState.step) {
+      case "connect":
+        handleConnect();
+        break;
+      case "sign":
+        handleSign();
+        break;
+      case "verify":
+        // No manual action while verifying
+        break;
+      case "username":
+        handleUsernameSubmit();
+        break;
+      default:
+        break;
     }
-  }, [disconnect, logout]);
+  };
+
+  const isButtonDisabled = () => {
+    if (authState.step === "username") {
+      return !authState.username.trim() || authState.isLoading || isRegistering;
+    }
+    return (
+      isConnecting ||
+      authState.isLoading ||
+      isSignPending ||
+      authState.step === "complete" ||
+      authState.step === "verify"
+    );
+  };
 
   return (
     <div className="connect-page-bg min-h-[100dvh] w-full text-white overflow-x-hidden flex items-center justify-center">
       <div className="text-center space-y-8 px-6 sm:px-8">
         {/* Logo */}
         <div className="flex items-center justify-center mb-8">
-          <img src="./logo.png" alt="logo" className="w-12 h-12 sm:w-16 sm:h-16" />
+          <img
+            src="./logo.png"
+            alt="logo"
+            className="w-12 h-12 sm:w-16 sm:h-16"
+          />
           <p className="text-2xl sm:text-3xl font-bold ml-3">BLOXLAND</p>
         </div>
 
@@ -265,32 +605,85 @@ const ConnectPage: React.FC = () => {
         </div>
 
         {/* Connection Status Info */}
-        {isConnected && address && step !== 'redirecting' && (
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-4 max-w-md mx-auto">
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-300">Network:</span>
-                <span className="text-green-400">Sepolia Testnet ✓</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-300">Address:</span>
-                <span className="text-blue-400 font-mono">{formatAddress(address || '')}</span>
-              </div>
-              {step === 'verifying' && (
+        {isConnected &&
+          authState.step !== "complete" &&
+          authState.step !== "username" && (
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-4 max-w-md mx-auto">
+              <div className="space-y-2 text-sm">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-300">Status:</span>
-                  <span className="text-orange-400">Verifying account</span>
+                  <span className="text-gray-300">Network:</span>
+                  <span
+                    className={
+                      chainId === baseSepolia.id || chainId === sepolia.id
+                        ? "text-green-400"
+                        : "text-yellow-400"
+                    }
+                  >
+                    {chainId === baseSepolia.id || chainId === sepolia.id
+                      ? " Sepolia Testnet ✓"
+                      : "Wrong Network ⚠️"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Address:</span>
+                  <span className="text-blue-400 font-mono">
+                    {formatAddress(address || "")}
+                  </span>
+                </div>
+                {authState.step === "sign" && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">Status:</span>
+                    <span className="text-orange-400">Ready to sign</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+        {/* Username Input Section */}
+        {authState.step === "username" && (
+          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 max-w-md mx-auto">
+            <div className="space-y-4">
+              <div className="text-left">
+                <label
+                  htmlFor="username"
+                  className="block text-sm font-medium text-gray-300 mb-2"
+                >
+                  Username
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    id="username"
+                    value={authState.username}
+                    onChange={(e) => handleUsernameChange(e.target.value)}
+                    placeholder="Enter username"
+                    className="w-full px-4 py-3 bg-black/50 border border-white/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                    maxLength={20}
+                  />
+                  <div className="absolute right-3 top-3 text-gray-400 text-sm">
+                    .bloxland.eth
+                  </div>
+                </div>
+              </div>
+
+              {/* Username Preview */}
+              {authState.username && !authState.error && (
+                <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-3">
+                  <p className="text-green-300 text-sm">
+                    📍 Your ENS:{" "}
+                    <span className="font-mono">
+                      {authState.username}.bloxland.eth
+                    </span>
+                  </p>
                 </div>
               )}
-            </div>
-          </div>
-        )}
 
-        {username && (
-          <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-3 max-w-md mx-auto">
-            <p className="text-green-300 text-sm">
-              📍 Your ENS: <span className="font-mono">{username}.bloxland.eth</span>
-            </p>
+              {/* Character count */}
+              <div className="text-right text-xs text-gray-400">
+                {authState.username.length}/20 characters
+              </div>
+            </div>
           </div>
         )}
 
@@ -303,87 +696,74 @@ const ConnectPage: React.FC = () => {
 
         {/* Action Button */}
         <div className="flex justify-center mt-8">
-          {step === 'redirecting' ? (
+          {authState.step === "complete" ? (
             <div className="flex flex-col items-center space-y-3">
               <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-sm text-gray-300">Preparing your adventure...</p>
+              <p className="text-sm text-gray-300">
+                Preparing your adventure...
+              </p>
             </div>
-          ) : step === 'verifying' ? (
+          ) : authState.step === "verify" ? (
             <div className="flex flex-col items-center space-y-3">
               <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               <p className="text-sm text-gray-300">Verifying your account...</p>
             </div>
-          ) : !isConnected ? (
-            <button
-              onClick={handleMobileConnection}
-              disabled={isConnecting || connectionAttempts >= 3}
-              className="px-8 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-            >
-              {isConnecting ? (
-                <span className="flex items-center justify-center">
-                  <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin mr-2"></div>
-                  Connecting...
-                </span>
-              ) : connectionAttempts >= 3 ? (
-                'Too Many Attempts'
-              ) : (
-                'Connect Wallet'
-              )}
-            </button>
           ) : (
             <button
-              onClick={handleDisconnect}
-              className="px-8 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 active:scale-95"
+              onClick={handleButtonClick}
+              disabled={isButtonDisabled()}
+              className="px-8 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              Disconnect Wallet
+              {getButtonText()}
             </button>
           )}
         </div>
 
-        {/* Connection Attempts Counter */}
-        {connectionAttempts > 0 && connectionAttempts < 3 && (
-          <div className="flex justify-center space-x-2 mt-6">
-            {[1, 2, 3].map((attempt) => (
+        {/* Progress Indicator */}
+        <div className="flex justify-center space-x-2 mt-6">
+          {["connect", "sign", "verify", "username", "complete"].map(
+            (step, index) => (
               <div
-                key={attempt}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${attempt <= connectionAttempts ? 'bg-red-400' : 'bg-gray-600'
-                  }`}
+                key={step}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                  step === authState.step
+                    ? "bg-blue-400 scale-125"
+                    : [
+                        "connect",
+                        "sign",
+                        "verify",
+                        "username",
+                        "complete",
+                      ].indexOf(authState.step) > index
+                    ? "bg-green-400"
+                    : "bg-gray-600"
+                }`}
               />
-            ))}
-          </div>
-        )}
-
-        {/* Help Text */}
-        <div className="mt-8 text-center max-w-md mx-auto">
-          <p className="text-gray-400 text-sm">
-            Make sure you have MetaMask installed and are on the Sepolia network
-          </p>
-          {isMobile() && (
-            <p className="text-gray-400 text-xs mt-2">
-              On mobile? The MetaMask app will open automatically
-            </p>
+            )
           )}
         </div>
       </div>
 
       {/* Success Overlay */}
-      {step === 'redirecting' && isConnected && (
+      {showOverlay && authState.step === "complete" && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-black/70 text-white p-6 rounded-lg backdrop-blur-sm border border-white/20 max-w-md mx-4">
             <div className="text-center space-y-4">
-              <div className="text-4xl text-green-400 mb-4 animate-bounce">🎉</div>
+              <div className="text-4xl text-green-400 mb-4 animate-bounce">
+                🎉
+              </div>
               <h3 className="text-xl font-semibold">Welcome to Bloxland!</h3>
               <div className="space-y-2">
                 <p className="text-sm text-gray-300">Your Address:</p>
                 <p className="text-lg font-mono bg-white/10 px-3 py-2 rounded border">
-                  {formatAddress(address || '')}
+                  {formatAddress(address || "")}
                 </p>
                 <p className="text-sm text-gray-300">Your ENS Domain:</p>
                 <p className="text-lg font-mono bg-green-500/20 px-3 py-2 rounded border border-green-500/50 text-green-300">
-                  {getEnsDisplayName() || 'pending'}
+                  {getEnsDisplayName() || "pending"}
                 </p>
                 <p className="text-sm text-gray-300">Network:</p>
-                <p className="text-sm text-green-400">Sepolia Testnet ✓</p>
+                <p className="text-sm text-green-400">Base Sepolia Testnet ✓</p>
               </div>
               <p className="text-sm text-gray-400">
                 Redirecting to game in a moment...

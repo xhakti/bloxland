@@ -12,9 +12,12 @@ import {
   userAddressParamSchema,
   registerUserSchema,
   getUserByAddressSchema,
+  energizeSignatureSchema,
+  playSignatureSchema,
 } from "../utils/validationSchemas";
 
 import * as UserService from "../services/user/index";
+import * as SignatureService from "../services/user/signatures";
 
 // Get user by ID
 export const getUserByIdController: RequestHandler = async (req, res) => {
@@ -121,6 +124,38 @@ export const getUserByAddressController: RequestHandler = async (req, res) => {
         error: null,
       };
     },
+    scope: SCOPE.USER,
+  });
+};
+
+// Generate EIP-712 signature for EnergyToken.energizeWithSignature
+export const getEnergizeSignatureController: RequestHandler = async (
+  req,
+  res
+) => {
+  await ControllerHelper({
+    res,
+    logMessage: "Get Energize Signature",
+    validationSchema: energizeSignatureSchema,
+    validationData: req.body,
+    serviceMethod: async (data: any) =>
+      await SignatureService.getEnergizeSignature(data),
+    scope: SCOPE.USER,
+  });
+};
+
+// Generate EIP-712 signature for Bloxland.answerWithSignature
+export const getPlayAnswerSignatureController: RequestHandler = async (
+  req,
+  res
+) => {
+  await ControllerHelper({
+    res,
+    logMessage: "Get Play Answer Signature",
+    validationSchema: playSignatureSchema,
+    validationData: req.body,
+    serviceMethod: async (data: any) =>
+      await SignatureService.getPlayAnswerSignature(data),
     scope: SCOPE.USER,
   });
 };

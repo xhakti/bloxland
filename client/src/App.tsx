@@ -10,6 +10,7 @@ import LoadingSpinner from './components/ui/LoadingSpinner';
 const HomePage = React.lazy(() => import('./pages/HomePage'));
 const GamePage = React.lazy(() => import('./pages/GamePage'));
 const ConnectPage = React.lazy(() => import('./pages/ConnectPage'));
+const GameIntegrationsPage = React.lazy(() => import('./pages/GameIntegrationsPage'));
 const CreateCheckpointPage = React.lazy(() => import('./pages/CreateCheckpointPage'));
 const SponsorDashboard = React.lazy(() => import('./pages/SponsorDashboard'));
 const CheckpointDetailPage = React.lazy(() => import('./pages/CheckpointDetailPage'));
@@ -87,6 +88,11 @@ const App: React.FC = () => {
                   <Route path="/sponsor-dashboard" element={
                     <ProtectedRoute>
                       <SponsorDashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/game-integrations" element={
+                    <ProtectedRoute>
+                      <GameIntegrationsPage />
                     </ProtectedRoute>
                   } />
                   <Route path="/checkpoint/:id" element={

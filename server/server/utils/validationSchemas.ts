@@ -107,3 +107,47 @@ export const partnerAddressParamSchema = z.object({
 export const getUserByAddressSchema = z.object({
   address: z.string().min(1, "User address is required"),
 });
+
+// EIP-712 signature request schemas
+export const energizeSignatureSchema = z.object({
+  player: z.string().min(1, "Player address is required"),
+  amount: z.string().refine((val) => {
+    try {
+      const n = BigInt(val);
+      return n > 0n;
+    } catch {
+      return false;
+    }
+  }, "Amount must be a positive integer string"),
+});
+
+export const playSignatureSchema = z.object({
+  playId: z.string().refine((val) => {
+    try {
+      BigInt(val);
+      return true;
+    } catch {
+      return false;
+    }
+  }, "playId must be an integer string"),
+  player: z.string().min(1, "Player address is required"),
+  answer: z.string().refine((val) => {
+    // int64 bounds check
+    try {
+      const n = BigInt(val);
+      const min = -(2n ** 63n);
+      const max = 2n ** 63n - 1n;
+      return n >= min && n <= max && n !== 0n;
+    } catch {
+      return false;
+    }
+  }, "answer must be a non-zero int64 string"),
+  // optional result to pass through (must be -1 or 1)
+  result: z
+    .number()
+    .int()
+    .refine((v) => v === -1 || v === 1, {
+      message: "result must be -1 or 1",
+    })
+    .optional(),
+});
