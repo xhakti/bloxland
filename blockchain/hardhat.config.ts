@@ -3,6 +3,8 @@ import type { HardhatUserConfig } from "hardhat/config";
 import hardhatToolboxViemPlugin from "@nomicfoundation/hardhat-toolbox-viem";
 import { configVariable } from "hardhat/config";
 
+import "dotenv/config";
+
 const config: HardhatUserConfig = {
   plugins: [hardhatToolboxViemPlugin],
   solidity: {
@@ -22,19 +24,31 @@ const config: HardhatUserConfig = {
     },
   },
   networks: {
-    hardhatMainnet: {
+    hardhat: {
       type: "edr-simulated",
       chainType: "l1",
-    },
-    hardhatOp: {
-      type: "edr-simulated",
-      chainType: "op",
     },
     sepolia: {
       type: "http",
+      chainId: 11155111,
       chainType: "l1",
-      url: configVariable("SEPOLIA_RPC_URL"),
-      accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
+      // url: "https://sepolia.drpc.org",
+      url: "https://ethereum-sepolia-rpc.publicnode.com",
+      accounts: [configVariable("DEPLOYER_PRIVATE_KEY")],
+    },
+    'base-mainnet': {
+      type: "http",
+      chainId: 8453,
+      url: "https://mainnet.base.org",
+      accounts: [configVariable("DEPLOYER_PRIVATE_KEY")],
+      gasPrice: 1000000000,
+    },
+    'base-sepolia': {
+      type: "http",
+      chainId: 84532,
+      url: "https://sepolia.base.org",
+      accounts: [configVariable("DEPLOYER_PRIVATE_KEY")],
+      gasPrice: 1000000000,
     },
   },
 };
