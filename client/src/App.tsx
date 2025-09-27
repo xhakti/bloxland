@@ -20,7 +20,6 @@ function App() {
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/connect" element={<ConnectPage />} />
-              <Route path="/temp" element={<Temp />} />
               <Route path="/game" element={<GamePage />} />
               {/* <Route path="/settings" element={<SettingsPage />} /> */}
             </Routes>
