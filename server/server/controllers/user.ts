@@ -1,9 +1,6 @@
 import { RequestHandler } from "express";
 
-import {
-  ControllerHelper,
-  ParameterLessControllerHelper,
-} from "../utils/controllerHelper";
+import { ControllerHelper } from "../utils/controllerHelper";
 import { SCOPE } from "../utils/enums";
 import {
   getUserByIdSchema,
@@ -14,6 +11,7 @@ import {
   questIdParamSchema,
   userAddressParamSchema,
   registerUserSchema,
+  getUserByAddressSchema,
 } from "../utils/validationSchemas";
 
 import * as UserService from "../services/user/index";
@@ -102,7 +100,27 @@ export const registerUserController: RequestHandler = async (req, res) => {
     logMessage: "Register User",
     validationSchema: registerUserSchema,
     validationData: req.body,
-    serviceMethod: async (data: any) => await UserService.registerUserService(data),
+    serviceMethod: async (data: any) =>
+      await UserService.registerUserService(data),
+    scope: SCOPE.USER,
+  });
+};
+
+// Get user by address
+export const getUserByAddressController: RequestHandler = async (req, res) => {
+  await ControllerHelper({
+    res,
+    logMessage: "Get User By Address",
+    validationSchema: getUserByAddressSchema,
+    validationData: { address: req.params.address },
+    serviceMethod: async (data: any) => {
+      const user = await UserService.getUserByAddress(data.address);
+      return {
+        data: user,
+        message: "User retrieved successfully",
+        error: null,
+      };
+    },
     scope: SCOPE.USER,
   });
 };

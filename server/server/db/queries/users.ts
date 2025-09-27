@@ -12,17 +12,26 @@ export async function getAllUsers() {
 }
 
 export async function getUserById(id: string) {
-  const result = await db.select().from(usersTable).where(eq(usersTable.id, id));
+  const result = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.id, id));
   return result[0] || null;
 }
 
 export async function getUserByAddress(userAddress: string) {
-  const result = await db.select().from(usersTable).where(eq(usersTable.userAddress, userAddress));
+  const result = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.userAddress, userAddress));
   return result[0] || null;
 }
 
 export async function getUserByUsername(username: string) {
-  const result = await db.select().from(usersTable).where(eq(usersTable.username, username));
+  const result = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.username, username));
   return result[0] || null;
 }
 
@@ -65,11 +74,13 @@ export async function getPartnerUsers() {
     .where(eq(usersTable.userType, "Partner"));
 }
 
-export async function validatePartnerUser(userAddress: string): Promise<boolean> {
+export async function validatePartnerUser(
+  userAddress: string
+): Promise<boolean> {
   const result = await db
     .select({ userType: usersTable.userType })
     .from(usersTable)
     .where(eq(usersTable.userAddress, userAddress));
-  
+
   return result[0]?.userType === "Partner";
 }

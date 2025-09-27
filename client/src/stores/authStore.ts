@@ -140,7 +140,8 @@ export const useAuthSync = () => {
     // Check if stored auth is still valid
     if (isAuthenticated && timestamp) {
       const isExpired = Date.now() - timestamp > 24 * 60 * 60 * 1000; // 24 hours
-      const isWrongAddress = address !== useAuthStore.getState().address;
+      const storedAddress = useAuthStore.getState().address;
+      const isWrongAddress = address !== storedAddress;
 
       if (
         isExpired ||
@@ -150,9 +151,7 @@ export const useAuthSync = () => {
       ) {
         logout();
       }
-    }
-
-    // Mark as initialized after first sync
+    } // Mark as initialized after first sync
     if (!useAuthStore.getState().isInitialized) {
       setInitialized(true);
       setLoading(false);

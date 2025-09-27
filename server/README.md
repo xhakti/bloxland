@@ -1,4 +1,3 @@
-
 1. **All available routes** (user + partner + service)
 2. **Method + Path**
 3. **Request body / params / query** (based on the services you showed)
@@ -17,12 +16,12 @@ Express.js + TypeScript backend powering **Users, Partners, Social Quests, Rewar
 
 ## 📦 Features
 
-* User registration, profile update, leaderboard
-* Quest creation, submission, winner assignment
-* Reward claiming & tracking
-* Partner APIs with access control
-* Pagination for list endpoints
-* Unified JSON response format
+- User registration, profile update, leaderboard
+- Quest creation, submission, winner assignment
+- Reward claiming & tracking
+- Partner APIs with access control
+- Pagination for list endpoints
+- Unified JSON response format
 
 ---
 
@@ -36,11 +35,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Server:
-
-```
-http://localhost:3000
-```
+**Server:** <http://localhost:3000>
 
 ---
 
@@ -50,9 +45,9 @@ http://localhost:3000
 
 #### Health Check
 
-`GET /health`
+**GET** `/health`
 
-**Response**
+**Response:**
 
 ```json
 { "status": "ok" }
@@ -68,24 +63,26 @@ Base path: `/user`
 
 #### Register User
 
-`POST /user/register`
+**POST** `/user/register`
 
-**Body**
+**Body:**
 
 ```json
 {
   "address": "0x123",
   "username": "alice",
-  "email": "alice@example.com",
-  "referrer": "0x456"
+  "email": "alice@example.com"
 }
 ```
 
-**Response**
+**Response:**
 
 ```json
 {
-  "data": { "user": { "id": "u1", "username": "alice" }, "referrerRewardGranted": true },
+  "data": {
+    "user": { "id": "u1", "username": "alice" },
+    "referrerRewardGranted": true
+  },
   "message": "User created successfully",
   "error": null
 }
@@ -95,9 +92,9 @@ Base path: `/user`
 
 #### Get User by ID
 
-`GET /user/:id`
+**GET** `/user/:id`
 
-**Response**
+**Response:**
 
 ```json
 {
@@ -107,19 +104,35 @@ Base path: `/user`
 }
 ```
 
+#### Get User by Address
+
+**GET** `/user/:address`
+
+**Response:**
+
+```json
+{
+  "data": {
+    /* user object */
+  },
+  "message": "User retrieved successfully",
+  "error": null
+}
+```
+
 ---
 
 #### Update User
 
-`PUT /user/:address`
+**PUT** `/user/:address`
 
-**Body**
+**Body:**
 
 ```json
-{ "username": "alice_updated", "email": "alice@new.com" }
+{ "username": "alice_updated", "email": "alice_updated@example.com" }
 ```
 
-**Response**
+**Response:**
 
 ```json
 {
@@ -133,14 +146,14 @@ Base path: `/user`
 
 #### Leaderboard
 
-`GET /user/leaderboard?page&limit`
+**GET** `/user/leaderboard?page={page}&limit={limit}`
 
-**Response**
+**Response:**
 
 ```json
 {
   "data": {
-    "users": [ { "id": "u1", "points": 500 } ],
+    "users": [{ "id": "u1", "points": 500 }],
     "pagination": { "page": 1, "limit": 10, "totalCount": 50, "totalPages": 5 }
   },
   "message": "Leaderboard fetched successfully",
@@ -152,19 +165,22 @@ Base path: `/user`
 
 #### Submit Quest
 
-`POST /user/submit-quest/:questId`
+**POST** `/user/submit-quest/:questId`
 
-**Body**
+**Body:**
 
 ```json
-{ "userAddress": "0x123", "submissionLink": "https://twitter.com/post" }
+{ "userAddress": "0x123", "submissionLink": "https://example-twitter.com/post" }
 ```
 
-**Response**
+**Response:**
 
 ```json
 {
-  "data": { "questId": "q1", "submissionLink": "https://twitter.com/post" },
+  "data": {
+    "questId": "q1",
+    "submissionLink": "https://example-twitter.com/post"
+  },
   "message": "Quest submission created successfully",
   "error": null
 }
@@ -174,9 +190,9 @@ Base path: `/user`
 
 #### Add Claimed Rewards
 
-`POST /user/add-claimed-rewards`
+**POST** `/user/add-claimed-rewards`
 
-**Body**
+**Body:**
 
 ```json
 {
@@ -188,7 +204,7 @@ Base path: `/user`
 }
 ```
 
-**Response**
+**Response:**
 
 ```json
 {
@@ -208,9 +224,9 @@ Base path: `/partner`
 
 #### Create Social Quest
 
-`POST /partner/add-social-quest`
+**POST** `/partner/add-social-quest`
 
-**Body**
+**Body:**
 
 ```json
 {
@@ -226,7 +242,7 @@ Base path: `/partner`
 }
 ```
 
-**Response**
+**Response:**
 
 ```json
 {
@@ -240,14 +256,14 @@ Base path: `/partner`
 
 #### Get Partner Quests
 
-`GET /partner/quests/:partnerAddress?page&limit`
+**GET** `/partner/quests/:partnerAddress?page={page}&limit={limit}`
 
-**Response**
+**Response:**
 
 ```json
 {
   "data": {
-    "quests": [ { "questId": "q1", "questName": "Follow Project" } ],
+    "quests": [{ "questId": "q1", "questName": "Follow Project" }],
     "pagination": { "page": 1, "limit": 10, "totalPages": 2 }
   },
   "message": "Partner quests fetched successfully",
@@ -259,65 +275,10 @@ Base path: `/partner`
 
 #### Get Quest Submissions
 
-`GET /partner/submissions/:questId?page&limit&partnerAddress=0xPARTNER`
+GET /partner/submissions/:questId?page&limit&partnerAddress=0xPARTNER
 
-**Response**
+Response
 
-```json
-{
-  "data": {
-    "submissions": [
-      { "userAddress": "0x123", "submissionLink": "https://twitter.com/post" }
-    ],
-    "pagination": { "page": 1, "limit": 10, "totalCount": 5 }
-  },
-  "message": "Quest submissions fetched successfully",
-  "error": null
-}
 ```
 
----
-
-#### Add Quest Winners
-
-`PUT /partner/add-winner/:questId`
-
-**Body**
-
-```json
-{
-  "partnerAddress": "0xPARTNER",
-  "winnerAddresses": ["0x111", "0x222"]
-}
 ```
-
-**Response**
-
-```json
-{
-  "data": {
-    "quest": { "questId": "q1", "questWinner": "0x111,0x222" },
-    "rewardsCreated": 2
-  },
-  "message": "Quest winners updated successfully. 2 reward entries created.",
-  "error": null
-}
-```
-
----
-
-## ⚠️ Error Handling
-
-All responses follow:
-
-```json
-{ "data": null, "message": "Reason here", "error": null }
-```
-
-Server errors:
-
-```json
-{ "data": null, "message": "Failed to add quest winners", "error": "stacktrace..." }
-```
-
----
