@@ -25,7 +25,7 @@ const wagmiAdapter = new WagmiAdapter({
 // 4. Create modal
 createAppKit({
   adapters: [wagmiAdapter],
-  networks,
+  networks: [sepolia],
   projectId,
   defaultNetwork: sepolia, // Set Sepolia as default network
   metadata: {
@@ -36,8 +36,12 @@ createAppKit({
   },
   features: {
     analytics: true, // Optional - defaults to your Cloud configuration
-    connectMethodOrder: ["wallet"], // Prioritize wallet connections
+    connectMethodsOrder: ["wallet"], // Prioritize wallet connections
     onramp: false, // Disable onramp for testnet
+  },
+  themeMode: "dark",
+  themeVariables: {
+    "--w3m-border-radius-master": "8px",
   },
 });
 
