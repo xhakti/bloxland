@@ -39,6 +39,9 @@ contract Bloxland is EIP712 {
     // Number of tokens to consume
     uint256 energyAmount;
 
+    // Given by the entropy
+    bytes32 randomNumber;
+
     // Given by the user
     int64 answer;
 
@@ -106,12 +109,7 @@ contract Bloxland is EIP712 {
 
     energyToken.consume(msg.sender, _energyAmount);
 
-    Play memory thePlay = Play(_gameId, msg.sender, _energyAmount, 0, 0);
-
-    if (thePlay.player == address(0)) {
-      revert("Play not found");
-    }
-
+    Play memory thePlay = Play(_gameId, msg.sender, _energyAmount, bytes32(''), 0, 0);
     Game memory theGame = games[_gameId];
 
     if (bytes(theGame.name).length == 0) {
@@ -129,7 +127,7 @@ contract Bloxland is EIP712 {
 
       emit PlayStarted(sequenceNumber);
 
-      return sequenceNumber;
+      return uint256(sequenceNumber);
     } else {
       // pick a number after uint64 so it doesn't
       // overlaps with sequenceNumber
@@ -163,24 +161,12 @@ contract Bloxland is EIP712 {
 
     if (theGame.random) {
       plays[_playId].answer = _answer;
-    } else {
-      // https://docs.pyth.network/price-feeds/price-feeds
-      PythStructs.Price memory currentBasePrice = pyth.getPriceNoOlderThan(
-        0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43,
-        60
-      );
 
-      if (thePlay.gameId == GAME_BTC_GT) {
-        if (currentBasePrice.price > _answer) {
-          plays[_playId].result = 1;
-          emit PlayEnded(_playId, 1);
-        } else {
-          plays[_playId].result = -1;
-          emit PlayEnded(_playId, -1);
-        }
-      } else {
-        revert("Game not found");
+      if (plays[_playId].randomNumber != 0) {
+        _gameEntropy(thePlay, uint64(_playId), plays[_playId].randomNumber);
       }
+    } else {
+      _gameOracle(thePlay, _playId, _answer);
     }
   }
 
@@ -206,9 +192,52 @@ contract Bloxland is EIP712 {
     }
 
     if (thePlay.answer == 0) {
-      revert("No answer was given");
+      plays[sequenceNumber].randomNumber = randomNumber;
+    } else {
+      _gameEntropy(thePlay, sequenceNumber, randomNumber);
+    }
+  }
+
+  function answerWithSignature(
+    uint256 _playId,
+    int64 _answer,
+    int8 _result,
+    bytes memory _signature
+  ) public {
+    if (plays[_playId].player == address(0)) {
+      revert("Play not found");
     }
 
+    if (_answer == 0) {
+      revert("Invalid answer");
+    }
+
+    if (_result != -1 || _result != 1) {
+      revert("Invalid result");
+    }
+
+    if (!SignatureChecker.isValidSignatureNow(signer, _hash(_playId, msg.sender, _answer), _signature)) {
+      revert("Invalid signature");
+    }
+
+    plays[_playId].result = _result;
+    emit PlayEnded(_playId, _result);
+  }
+
+  function _hash(uint256 _playId, address _player, int64 _answer) internal view returns (bytes32) {
+    return _hashTypedDataV4(keccak256(abi.encode(
+      keccak256("BloxlandPlay(uint256 playId,address player,int64 answer)"),
+      _playId,
+      _player,
+      _answer
+    )));
+  }
+
+  function _gameEntropy(
+    Play memory thePlay,
+    uint64 sequenceNumber,
+    bytes32 randomNumber
+  ) private {
     if (thePlay.gameId == GAME_RANDOM_DICE) {
       int256 diceValue = _mapRandomNumber(randomNumber, 1, 6);
 
@@ -264,39 +293,24 @@ contract Bloxland is EIP712 {
     }
   }
 
-  function answerWithSignature(
-    uint256 _playId,
-    int64 _answer,
-    int8 _result,
-    bytes memory _signature
-  ) public {
-    if (plays[_playId].player == address(0)) {
-      revert("Play not found");
+  function _gameOracle(Play memory thePlay, uint256 _playId, int64 _answer) private {
+    // https://docs.pyth.network/price-feeds/price-feeds
+    PythStructs.Price memory btc = pyth.getPriceNoOlderThan(
+      0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43,
+      60
+    );
+
+    if (thePlay.gameId == GAME_BTC_GT) {
+      if (btc.price > _answer) {
+        plays[_playId].result = 1;
+        emit PlayEnded(_playId, 1);
+      } else {
+        plays[_playId].result = -1;
+        emit PlayEnded(_playId, -1);
+      }
+    } else {
+      revert("Game not found");
     }
-
-    if (_answer == 0) {
-      revert("Invalid answer");
-    }
-
-    if (_result != -1 || _result != 1) {
-      revert("Invalid result");
-    }
-
-    if (!SignatureChecker.isValidSignatureNow(signer, _hash(_playId, msg.sender, _answer), _signature)) {
-      revert("Invalid signature");
-    }
-
-    plays[_playId].result = _result;
-    emit PlayEnded(_playId, _result);
-  }
-
-  function _hash(uint256 _playId, address _player, int64 _answer) internal view returns (bytes32) {
-    return _hashTypedDataV4(keccak256(abi.encode(
-      keccak256("BloxlandPlay(uint256 playId,address player,int64 answer)"),
-      _playId,
-      _player,
-      _answer
-    )));
   }
 
   function _mapRandomNumber(bytes32 randomNumber, int256 minRange, int256 maxRange) pure internal returns (int256) {
