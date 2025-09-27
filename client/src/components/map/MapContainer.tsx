@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -17,9 +18,9 @@ const MapContainer: React.FC<MapContainerProps> = ({
     avatarUrl = 'https://models.readyplayer.me/68c92d1a7a525019305da2eb.glb'
 }) => {
     const mapContainerRef = useRef<HTMLDivElement>(null);
-    const mapRef = useRef<any>(null);
-    const avatarLayerRef = useRef<AvatarLayer | null>(null);
-    const geolocateControlRef = useRef<any>(null);
+    const mapRef = useRef<mapboxgl.Map | null>(null);
+    const avatarLayerRef = useRef<any>(null);
+    const geolocateControlRef = useRef<mapboxgl.GeolocateControl | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
     const [loadingStatus, setLoadingStatus] = useState('Initializing...');
@@ -44,7 +45,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
 
         const map = mapRef.current;
         const newMode = !is3DMode;
-        
+
         if (newMode) {
             // Switch to 3D mode - overhead view
             map.flyTo({
@@ -62,14 +63,13 @@ const MapContainer: React.FC<MapContainerProps> = ({
                 essential: true
             });
         }
-        
+
         setIs3DMode(newMode);
     };
 
     // Locate user function
     const locateUser = () => {
         if (!mapRef.current || !geolocateControlRef.current) return;
-
         // Trigger the geolocate control
         geolocateControlRef.current.trigger();
     };
@@ -80,11 +80,11 @@ const MapContainer: React.FC<MapContainerProps> = ({
 
         if (isFollowingUser) {
             // Stop tracking
-            geolocateControlRef.current._updateCamera = false;
+            (geolocateControlRef.current as any)._updateCamera = false;
             setIsFollowingUser(false);
         } else {
             // Start tracking
-            geolocateControlRef.current._updateCamera = true;
+            (geolocateControlRef.current as any)._updateCamera = true;
             locateUser();
             setIsFollowingUser(true);
         }
@@ -115,7 +115,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
         mapRef.current.once('styledata', () => {
             if (avatarLayerRef.current && userLocation) {
                 try {
-                    mapRef.current.addLayer(avatarLayerRef.current);
+                    mapRef.current!.addLayer(avatarLayerRef.current);
                 } catch (error) {
                     console.warn('Avatar layer already exists or error re-adding:', error);
                 }
@@ -272,11 +272,9 @@ const MapContainer: React.FC<MapContainerProps> = ({
                         (position) => {
                             const { latitude, longitude } = position.coords;
                             const location: [number, number] = [longitude, latitude];
-
                             console.log('Location obtained:', location);
                             setUserLocation(location);
                             onUserLocationChange?.(location);
-
                             // Preload avatar first, then fly to location with overhead view
                             preloadAvatarAndFly(map, location);
                         },
@@ -286,7 +284,6 @@ const MapContainer: React.FC<MapContainerProps> = ({
                             const fallbackLocation: [number, number] = [72.900719, 19.072816];
                             setUserLocation(fallbackLocation);
                             onUserLocationChange?.(fallbackLocation);
-
                             preloadAvatarAndFly(map, fallbackLocation);
                         },
                         { enableHighAccuracy: true, timeout: 10000 }
@@ -296,7 +293,6 @@ const MapContainer: React.FC<MapContainerProps> = ({
                     const defaultLocation: [number, number] = [0, 0];
                     setUserLocation(defaultLocation);
                     onUserLocationChange?.(defaultLocation);
-
                     preloadAvatarAndFly(map, defaultLocation);
                 }
             });
@@ -325,6 +321,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
             if (mapRef.current) {
                 mapRef.current.remove();
             }
+
             mapRef.current = null;
             avatarLayerRef.current = null;
             geolocateControlRef.current = null;
@@ -334,98 +331,68 @@ const MapContainer: React.FC<MapContainerProps> = ({
 
     return (
         <div className="relative w-full h-full">
-            <div
-                ref={mapContainerRef}
-                className="w-full h-full"
-                style={{ minHeight: '400px' }}
-            />
+            {/* Map Container */}
+            <div ref={mapContainerRef} className="w-full h-full" />
 
-            {/* Custom Controls Panel */}
-            <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+            {/* Custom Controls Panel - Tailwind Classes */}
+            <div className="absolute top-5 left-5 z-[1000] flex flex-col gap-2 max-w-[120px]">
                 {/* 2D/3D Toggle Control */}
                 <button
                     onClick={toggleView}
-                    className="bg-white hover:bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors duration-200 flex items-center gap-2"
+                    className="bg-white/95 border border-black/10 rounded-md px-3 py-2 text-xs font-semibold text-gray-700 cursor-pointer transition-all duration-200 flex items-center gap-1 shadow-sm backdrop-blur-sm hover:bg-white hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     disabled={isLoading}
-                    title={`Switch to ${is3DMode ? '2D' : '3D'} view`}
+                    aria-label={`Switch to ${is3DMode ? '2D' : '3D'} view`}
                 >
-                    {is3DMode ? (
-                        <>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <rect x="3" y="3" width="18" height="18" rx="2"/>
-                                <path d="M9 9h6v6H9z"/>
-                            </svg>
-                            2D
-                        </>
-                    ) : (
-                        <>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                                <polyline points="7.5,4.21 12,6.81 16.5,4.21"/>
-                                <polyline points="7.5,19.79 7.5,14.6 3,12"/>
-                                <polyline points="21,12 16.5,14.6 16.5,19.79"/>
-                            </svg>
-                            3D
-                        </>
-                    )}
+                    <span className="text-sm">
+                        {is3DMode ? '🗺️' : '🏗️'}
+                    </span>
+                    {is3DMode ? '2D' : '3D'}
                 </button>
 
                 {/* Quick locate user button */}
                 <button
                     onClick={locateUser}
-                    className="bg-white hover:bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors duration-200 flex items-center gap-2"
+                    className="bg-white/95 border border-black/10 rounded-md px-3 py-2 text-xs font-semibold text-gray-700 cursor-pointer transition-all duration-200 flex items-center gap-1 shadow-sm backdrop-blur-sm hover:bg-white hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     disabled={isLoading}
-                    title="Locate me"
+                    aria-label="Locate current position"
                 >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="3"/>
-                        <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/>
-                    </svg>
+                    <span className="text-sm">📍</span>
                     Locate
                 </button>
 
                 {/* User tracking toggle */}
                 <button
                     onClick={toggleUserTracking}
-                    className={`border border-gray-300 rounded-md px-3 py-2 text-sm font-medium shadow-sm transition-colors duration-200 flex items-center gap-2 ${
-                        isFollowingUser 
-                            ? 'bg-blue-500 text-white hover:bg-blue-600' 
-                            : 'bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
+                    className={`bg-white/95 border border-black/10 rounded-md px-3 py-2 text-xs font-semibold cursor-pointer transition-all duration-200 flex items-center gap-1 shadow-sm backdrop-blur-sm hover:bg-white hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${isFollowingUser
+                        ? 'bg-blue-500/90 text-white border-blue-500/30'
+                        : 'text-gray-700'
+                        }`}
                     disabled={isLoading}
-                    title={isFollowingUser ? "Stop following" : "Follow location"}
+                    aria-label={`${isFollowingUser ? 'Stop' : 'Start'} following user location`}
                 >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                        <circle cx="12" cy="10" r="3"/>
-                    </svg>
+                    <span className="text-sm">👁️</span>
                     {isFollowingUser ? 'Following' : 'Follow'}
                 </button>
 
                 {/* Reset view button */}
                 <button
                     onClick={resetMapView}
-                    className="bg-white hover:bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors duration-200 flex items-center gap-2"
+                    className="bg-white/95 border border-black/10 rounded-md px-3 py-2 text-xs font-semibold text-gray-700 cursor-pointer transition-all duration-200 flex items-center gap-1 shadow-sm backdrop-blur-sm hover:bg-white hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     disabled={isLoading || !userLocation}
-                    title="Reset view"
+                    aria-label="Reset map view to initial position"
                 >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
-                        <path d="M21 3v5h-5"/>
-                        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
-                        <path d="M8 16H3v5"/>
-                    </svg>
+                    <span className="text-sm">🔄</span>
                     Reset
                 </button>
-            </div>
 
-            {/* Map Style Selector */}
-            <div className="absolute bottom-4 right-4 z-10">
+                {/* Map Style Selector */}
                 <select
                     value={mapStyle}
                     onChange={(e) => changeMapStyle(e.target.value)}
-                    className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm font-medium text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="bg-white/95 border border-black/10 rounded-md px-3 py-2 text-xs font-medium text-gray-700 cursor-pointer backdrop-blur-sm shadow-sm focus:outline-none focus:border-blue-500 focus:shadow-blue-500/20 focus:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={isLoading}
+                    aria-label="Select map style"
+                    title="Choose map style"
                 >
                     {mapStyles.map((style) => (
                         <option key={style.value} value={style.value}>
@@ -435,28 +402,18 @@ const MapContainer: React.FC<MapContainerProps> = ({
                 </select>
             </div>
 
-            {/* Status indicator */}
+            {/* Status indicator - Tailwind Classes */}
             {userLocation && (
-                <div className="absolute bottom-4 left-4 z-10">
-                    <div className="bg-black/70 text-white px-3 py-2 rounded-md text-sm backdrop-blur-sm">
-                        <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${isFollowingUser ? 'bg-green-400' : 'bg-gray-400'}`} />
-                            <span>
-                                {userLocation[1].toFixed(6)}, {userLocation[0].toFixed(6)}
-                            </span>
-                        </div>
-                    </div>
+                <div className="absolute bottom-15 left-5 z-[1000] bg-black/80 text-white px-3 py-2 rounded-md text-xs font-mono backdrop-blur-sm">
+                    📍 {userLocation[1].toFixed(6)}, {userLocation[0].toFixed(6)}
                 </div>
             )}
 
+            {/* Loading overlay - Tailwind Classes */}
             {isLoading && (
-                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50">
-                    <div className="text-center space-y-6">
-                        <LoadingSpinner />
-                        <div className="text-white space-y-2">
-                            <p className="text-lg">{loadingStatus}</p>
-                        </div>
-                    </div>
+                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-[2000] backdrop-blur-sm">
+                    <LoadingSpinner />
+                    <p className="text-white mt-4 text-sm font-medium">{loadingStatus}</p>
                 </div>
             )}
         </div>

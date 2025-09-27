@@ -1,9 +1,9 @@
-import React, { useRef, useEffect, useState, useCallback, Suspense } from 'react';
+import { useRef, useEffect, useState, useCallback, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 
-// Loading fallback component
+// Loading fallback component with Tailwind
 function LoadingFallback() {
   return (
     <div className="flex items-center justify-center w-full h-full">
@@ -12,54 +12,53 @@ function LoadingFallback() {
   );
 }
 
-// Error fallback component
-function ErrorFallback() {
-  return (
-    <div className="flex items-center justify-center w-full h-full">
-      <div className="text-center text-white">
-        <div className="text-6xl mb-4">🌍</div>
-        <p className="text-sm opacity-75">Globe Loading...</p>
-      </div>
-    </div>
-  );
-}
-
 function AnimatedEarth() {
   const modelRef = useRef<THREE.Group>(null);
   const { viewport } = useThree();
-  const [error, setError] = useState(false);
 
-  // Load GLTF with error handling
-  let scene;
-  try {
-    const gltf = useGLTF('/earth.glb');
-    scene = gltf.scene;
-  } catch (err) {
-    console.error('Failed to load earth.glb:', err);
-    setError(true);
-    return <ErrorFallback />;
-  }
+  // Use useGLTF hook properly
+  const { scene } = useGLTF('/earth.glb');
 
   useFrame((_, delta) => {
-    if (modelRef.current && !error) {
+    if (modelRef.current) {
       modelRef.current.rotation.y += delta * 0.2;
     }
   });
 
-  if (error) {
-    return <ErrorFallback />;
-  }
+  useEffect(() => {
+    if (scene && modelRef.current) {
+      // Enhance materials for better appearance
+      scene.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          if (child.material) {
+            // Make the material more vibrant
+            if (child.material instanceof THREE.MeshStandardMaterial) {
+              child.material.metalness = 0.1;
+              child.material.roughness = 0.7;
+              child.material.emissive = new THREE.Color(0x112244);
+              child.material.emissiveIntensity = 0.1;
+            }
+          }
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+    }
+  }, [scene]);
 
   // Calculate responsive scale based on viewport size
-  const scale = Math.min(viewport.width * 0.3, viewport.height * 0.3, 2.5);
+  const scale = Math.min(viewport.width * 0.35, viewport.height * 0.35, 2.5);
 
   return (
-    <primitive
-      ref={modelRef}
-      object={scene.clone()}
-      scale={[scale, scale, scale]}
-      position={[0, 0, 0]}
-    />
+    <group>
+      {/* Main Earth Model */}
+      <primitive
+        ref={modelRef}
+        object={scene}
+        scale={[scale, scale, scale]}
+        position={[0, 0, 0]}
+      />
+    </group>
   );
 }
 
@@ -116,13 +115,13 @@ function ResponsiveCanvas({ children }: { children: React.ReactNode }) {
   }, [gl, camera, contextLost]);
 
   if (contextLost) {
-    return <ErrorFallback />;
+    return null; // Return null instead of HTML component in 3D context
   }
 
   return <>{children}</>;
 }
 
-const RotatingGlobe: React.FC = () => {
+const RotatingGlobe = () => {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [isVisible, setIsVisible] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -171,7 +170,7 @@ const RotatingGlobe: React.FC = () => {
   }
 
   return (
-    <div ref={containerRef} className="w-full h-full">
+    <div ref={containerRef} className="w-full h-full relative">
       <Canvas
         camera={{
           position: [0, 0, 5],
@@ -187,20 +186,39 @@ const RotatingGlobe: React.FC = () => {
         }}
         onCreated={(state) => {
           state.gl.setClearColor('#000000', 0);
+          // Enable tone mapping for better colors
+          state.gl.toneMapping = THREE.ACESFilmicToneMapping;
+          state.gl.toneMappingExposure = 1.2;
         }}
-        style={{ background: 'transparent' }}
+        className="bg-transparent"
+        fallback={<LoadingFallback />}
       >
         <Suspense fallback={null}>
           <ResponsiveCanvas>
-            <ambientLight intensity={0.5} />
-            <pointLight position={[10, 10, 10]} intensity={1} />
+            {/* Enhanced Lighting for Glow Effect */}
+            <ambientLight intensity={0.3} color="#404080" />
+            <directionalLight
+              position={[10, 10, 5]}
+              intensity={1.5}
+              color="#ffffff"
+              castShadow
+              shadow-mapSize-width={1024}
+              shadow-mapSize-height={1024}
+            />
+            <pointLight position={[-10, -10, -5]} intensity={0.5} color="#4FC3F7" />
+
+            {/* Animated Earth with Glow */}
             <AnimatedEarth />
+
+            {/* OrbitControls */}
             <OrbitControls
               enableZoom={false}
               enablePan={false}
               autoRotate={false}
               enableDamping={true}
               dampingFactor={0.1}
+              minPolarAngle={Math.PI / 3}
+              maxPolarAngle={Math.PI - Math.PI / 3}
             />
           </ResponsiveCanvas>
         </Suspense>
