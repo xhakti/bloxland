@@ -7,7 +7,7 @@ import GameControls from '../components/game/GameControls';
 const GamePage: React.FC = () => {
     const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
     const [isMapReady, setIsMapReady] = useState(false);
-    const [mapInstance, setMapInstance] = useState<any>(null);
+    const [_mapInstance, setMapInstance] = useState<any>(null);
 
     // Your provided Ready Player Me avatar URL
     const [avatarUrl] = useState<string>(

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import MapContainer from '../map/MapContainer';
-import PlayerController from '../player/PlayerController';
 import AvatarCreator from '../player/AvatarCreator';
 import { GlassmorphismModal } from '../ui/GlassmorphismModal';
 
@@ -29,15 +28,6 @@ const GameWorld: React.FC<GameWorldProps> = ({ onLocationChange }) => {
                 onUserLocationChange={handleLocationChange}
                 onMapReady={handleMapReady}
             />
-
-            {mapInstance && (
-                <PlayerController
-                    mapInstance={mapInstance}
-                    userLocation={userLocation}
-                    avatarUrl={avatarUrl}
-                    isEnabled={true}
-                />
-            )}
 
             {/* Avatar Creator Modal */}
             <GlassmorphismModal

@@ -20,7 +20,7 @@ const Gameplay = () => {
   ];
 
   return (
-    <div className="w-full py-20 px-4" 
+    <div className="w-full py-20 px-4"
 
     >
       {/* Header */}
@@ -36,13 +36,13 @@ const Gameplay = () => {
       {/* Features Grid */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
         {features.map((feature, index) => (
-          <div 
+          <div
             key={index}
             className="bg-white/10 rounded-3xl p-8 lg:p-10 border border-white/20 group"
           >
             {/* Image */}
             <div className="mb-8 flex justify-center">
-              <img 
+              <img
                 src={feature.image}
                 alt={feature.title}
                 className="w-36 h-36 sm:w-44 sm:h-44 object-contain group-hover:scale-110 transition-transform duration-300"
