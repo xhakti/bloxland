@@ -24,12 +24,14 @@ export const useMapbox = ({
     const map = new mapboxgl.Map({
       container: container.current,
       style: "mapbox://styles/mapbox/standard",
-      antialias: true,
       center: [0, 0],
       zoom: 3,
       pitch: 60,
       bearing: -20,
       maxPitch: 85,
+      antialias: true,
+      minZoom: 8,
+      maxZoom: 18,
     });
 
     mapRef.current = map;

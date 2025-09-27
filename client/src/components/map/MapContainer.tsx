@@ -127,7 +127,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
                             setUserLocation(location);
                             onUserLocationChange?.(location);
 
-                            // Preload avatar first, then fly to location with Pokémon GO style
+                            // Preload avatar first, then fly to location
                             preloadAvatarAndFly(map, location);
                         },
                         (error) => {
@@ -188,43 +188,6 @@ const MapContainer: React.FC<MapContainerProps> = ({
                 className="w-full h-full"
                 style={{ minHeight: '400px' }}
             />
-
-            {/* Simple loading overlay - no gradient */}
-            {isLoading && (
-                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50">
-                    <div className="text-center space-y-6">
-                        <LoadingSpinner />
-                        <div className="text-white space-y-2">
-                            <p className="text-lg">{loadingStatus}</p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Avatar status indicator */}
-            {!isLoading && (
-                <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-lg text-white p-3 rounded-lg text-sm z-10 max-w-xs">
-                    <div className="flex items-center space-x-2 mb-2">
-                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                        <span className="font-semibold">Avatar Ready</span>
-                    </div>
-                    <div className="text-xs space-y-1 opacity-75">
-                        <div>🎮 Pokémon GO style view</div>
-                        <div>📍 {userLocation?.[1].toFixed(4)}, {userLocation?.[0].toFixed(4)}</div>
-                    </div>
-                </div>
-            )}
-
-            {/* Animation status */}
-            {!isLoading && avatarLayerRef.current && (
-                <div className="absolute bottom-4 right-4 bg-black/70 backdrop-blur-lg text-white p-3 rounded-lg text-sm z-10">
-                    <div className="text-xs space-y-1">
-                        <div className="font-semibold">Animation Status</div>
-                        <div>Current: {avatarLayerRef.current.getCurrentAnimation() || 'Idle'}</div>
-                        <div>Loaded: {avatarLayerRef.current.getAvailableAnimations().length} animations</div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
