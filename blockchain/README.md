@@ -1,57 +1,30 @@
-# Sample Hardhat 3 Beta Project (`node:test` and `viem`)
+# Bloxland Contracts
 
-This project showcases a Hardhat 3 Beta project using the native Node.js test runner (`node:test`) and the `viem` library for Ethereum interactions.
+The `Bloxland` contract hold many mini-games to be played on-chain.
 
-To learn more about the Hardhat 3 Beta, please visit the [Getting Started guide](https://hardhat.org/docs/getting-started#getting-started-with-hardhat-3). To share your feedback, join our [Hardhat 3 Beta](https://hardhat.org/hardhat3-beta-telegram-group) Telegram group or [open an issue](https://github.com/NomicFoundation/hardhat/issues/new) in our GitHub issue tracker.
+It uses Pyth Network to fetch external resources such an random numbers using
+the entropy contract and the price of BTC using the oracle contract.
 
-## Project Overview
+There are four games registered:
 
-This example project includes:
+- Dice: guess a number from a randomly selected (using Pyth entropy) between
+  one and six.
+- Even or Odd: try to find out if a number between 1 and 100 that is random
+  picked is divisible by two or not.
+- Over Half: win when you found that a random number between 1 and 100 is
+  greater than 50 or not.
+- Greater than BTC Price: see how close you are of finding the BTC price (from
+  the Pyth oracle).
 
-- A simple Hardhat configuration file.
-- Foundry-compatible Solidity unit tests.
-- TypeScript integration tests using [`node:test`](nodejs.org/api/test.html), the new Node.js native test runner, and [`viem`](https://viem.sh/).
-- Examples demonstrating how to connect to different types of networks, including locally simulating OP mainnet.
+The contract also supports off-chain deciding on winners of partner games using
+EIP-712 signature standard.
 
-## Usage
+## Configuration
 
-### Running Tests
+Copy `.env.template` to `.env` and replace the private key and the backend signer.
 
-To run all the tests in the project, execute the following command:
-
-```shell
-npx hardhat test
-```
-
-You can also selectively run the Solidity or `node:test` tests:
-
-```shell
-npx hardhat test solidity
-npx hardhat test nodejs
-```
-
-### Make a deployment to Sepolia
-
-This project includes an example Ignition module to deploy the contract. You can deploy this module to a locally simulated chain or to Sepolia.
-
-To run the deployment to a local chain:
+## Deployment
 
 ```shell
-npx hardhat ignition deploy ignition/modules/Counter.ts
-```
-
-To run the deployment to Sepolia, you need an account with funds to send the transaction. The provided Hardhat configuration includes a Configuration Variable called `SEPOLIA_PRIVATE_KEY`, which you can use to set the private key of the account you want to use.
-
-You can set the `SEPOLIA_PRIVATE_KEY` variable using the `hardhat-keystore` plugin or by setting it as an environment variable.
-
-To set the `SEPOLIA_PRIVATE_KEY` config variable using `hardhat-keystore`:
-
-```shell
-npx hardhat keystore set SEPOLIA_PRIVATE_KEY
-```
-
-After setting the variable, you can run the deployment with the Sepolia network:
-
-```shell
-npx hardhat ignition deploy --network sepolia ignition/modules/Counter.ts
+pnpm exec hardhat --network base-sepolia ignition deploy ignition/modules/Bloxland.ts
 ```
