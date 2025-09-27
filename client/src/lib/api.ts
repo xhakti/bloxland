@@ -1,7 +1,5 @@
-const API_BASE_URL = "http://localhost:3000";
-
 // API Response types based on your unified format
-export interface ApiResponse<T = any> {
+export interface ApiResponse      <T = any> {
   data: T;
   message: string;
   error: null | string;
@@ -92,7 +90,7 @@ export interface Reward {
 class ApiClient {
   private baseURL: string;
 
-  constructor(baseURL: string = API_BASE_URL) {
+  constructor(baseURL: string = import.meta.env.VITE_API_BASE_URL) {
     this.baseURL = baseURL;
   }
 
