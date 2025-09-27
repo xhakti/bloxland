@@ -104,6 +104,22 @@ Base path: `/user`
 }
 ```
 
+#### Get User by Address
+
+**GET** `/user/:address`
+
+**Response:**
+
+```json
+{
+  "data": {
+    /* user object */
+  },
+  "message": "User retrieved successfully",
+  "error": null
+}
+```
+
 ---
 
 #### Update User
