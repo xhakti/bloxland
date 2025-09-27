@@ -44,9 +44,8 @@ const BottomBar: React.FC<BottomBarProps> = ({
             className="p-2 bg-white/10 hover:bg-white/20 transition-colors rounded-lg border border-white/20"
           >
             <ChevronRight
-              className={`w-6 h-6 text-white transition-transform duration-300 ${
-                showSidebar ? "rotate-180" : ""
-              }`}
+              className={`w-6 h-6 text-white transition-transform duration-300 ${showSidebar ? "rotate-180" : ""
+                }`}
             />
           </button>
         </div>
@@ -54,9 +53,8 @@ const BottomBar: React.FC<BottomBarProps> = ({
 
       {/* Sidebar */}
       <div
-        className={`fixed right-0 bottom-0 top-0 z-60 w-80 bg-black border-l border-white/20 transform transition-transform duration-300 ease-in-out ${
-          showSidebar ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed right-0 bottom-0 top-0 z-60 w-80 bg-black border-l border-white/20 transform transition-transform duration-300 ease-in-out ${showSidebar ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <div className="flex flex-col h-full">
           {/* Sidebar Header */}

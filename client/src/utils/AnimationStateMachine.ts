@@ -39,6 +39,11 @@ export class AnimationStateMachine {
   private idleVariations: AnimationAction[] = [];
   private baseIdleAction?: AnimationAction;
   private walkingAction?: AnimationAction;
+  // Map of all actions by name for quick lookup / cross-fading
+  private actions: Record<string, AnimationAction> = {};
+
+  // Track explicit walking state (separate from state enum for quick checks)
+  private isWalking: boolean = false; // Added per request
 
   // State machine tracking
   private isInitialized: boolean = false;
@@ -79,6 +84,8 @@ export class AnimationStateMachine {
           name: variationName,
           duration: actions[variationName].getClip().duration,
         });
+        this.actions[variationName] =
+          this.idleVariations[this.idleVariations.length - 1];
         console.log(`Registered idle variation: ${variationName}`);
       }
     });
@@ -90,6 +97,7 @@ export class AnimationStateMachine {
         name: "idle_base",
         duration: actions["idle_base"].getClip().duration,
       };
+      this.actions["idle_base"] = this.baseIdleAction;
     }
 
     // Register walking animation
@@ -99,6 +107,7 @@ export class AnimationStateMachine {
         name: "walking",
         duration: actions["walking"].getClip().duration,
       };
+      this.actions["walking"] = this.walkingAction;
     }
 
     console.log("Registered animations:", {
@@ -155,15 +164,28 @@ export class AnimationStateMachine {
   }
 
   // Manual state transitions
-  startWalking() {
-    if (this.walkingAction) {
-      this.transitionToState(AnimationStates.WALKING, this.walkingAction);
+  // Added public methods using cross-fade approach per user request
+  public startWalking(): void {
+    if (this.actions["walking"]) {
+      console.log("🚶‍♂️ Starting walking animation");
+      this.isWalking = true;
+      this.crossFadeToAction("walking", this.config.fadeTime);
     }
   }
 
-  stopWalking() {
-    if (this.baseIdleAction) {
-      this.transitionToState(AnimationStates.BASE_IDLE, this.baseIdleAction);
+  public stopWalking(): void {
+    if (this.isWalking) {
+      console.log("🛑 Stopping walking animation");
+      this.isWalking = false;
+      // Return to base idle (or first available idle variation fallback)
+      if (this.actions["idle_base"]) {
+        this.crossFadeToAction("idle_base", this.config.fadeTime);
+      } else if (this.idleVariations.length > 0) {
+        this.crossFadeToAction(
+          this.idleVariations[0].name,
+          this.config.fadeTime
+        );
+      }
     }
   }
 
@@ -265,6 +287,35 @@ export class AnimationStateMachine {
     console.log(
       `State transition: ${newState} - Playing: ${newAnimationAction.name}`
     );
+  }
+
+  // Helper to cross-fade to a named action while keeping state machine semantics
+  private crossFadeToAction(actionName: string, fade: number) {
+    const target = this.actions[actionName];
+    if (!target) return;
+
+    // Determine state from action name
+    let targetState = this.currentState;
+    if (actionName === "walking") {
+      targetState = AnimationStates.WALKING;
+    } else if (actionName === "idle_base") {
+      targetState = AnimationStates.BASE_IDLE;
+    } else if (actionName.startsWith("idle_variation")) {
+      targetState = AnimationStates.RANDOM_VARIATION;
+    }
+
+    // Fade out current
+    if (this.currentAction && this.currentAction.action !== target.action) {
+      this.currentAction.action.fadeOut(fade);
+    }
+
+    // Play target
+    target.action.reset().fadeIn(fade).play();
+
+    this.currentAction = target;
+    this.currentState = targetState;
+    this.stateStartTime = Date.now();
+    console.log(`Cross-faded to action: ${actionName} (state: ${targetState})`);
   }
 
   // Getters for debugging and external access

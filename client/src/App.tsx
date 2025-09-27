@@ -16,187 +16,93 @@ const CheckpointDetailPage = React.lazy(() => import('./pages/CheckpointDetailPa
 
 import './index.css';
 
-// Setup queryClient with better defaults
+// Setup queryClient with optimized settings to prevent spam
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 3,
+      retry: 1, // Reduced from 3 to prevent spam
       staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+      gcTime: 10 * 60 * 1000, // 10 minutes
+      refetchOnWindowFocus: false, // Prevent spam on focus
+      refetchOnReconnect: false, // Prevent spam on reconnect
+      refetchOnMount: false, // Prevent spam on component mount
+      networkMode: 'offlineFirst', // Better offline handling
     },
     mutations: {
-      retry: 1,
+      retry: 0, // Disable mutation retries to prevent spam
+      networkMode: 'offlineFirst',
     },
   },
-})
+});
 
 // Loading component
 const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-black">
+  <div className="flex items-center justify-center min-h-screen bg-slate-900">
     <LoadingSpinner />
   </div>
-)
+);
 
-// Protected Route Component (only for Game page)
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isConnected, isOnCorrectNetwork, isLoading, isInitialized, address, timestamp, hasSigned } = useAuthStore()
+// Auth wrapper component to handle authentication state
+const AuthWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  useAuthSync(); // This handles the wallet connection sync
+  return <>{children}</>;
+};
 
-  // Debug route protection decisions
-  React.useEffect(() => {
-    console.log('[ProtectedRoute] Auth state check:', {
-      isAuthenticated,
-      isConnected,
-      isOnCorrectNetwork,
-      isLoading,
-      isInitialized,
-      hasAddress: !!address,
-      hasSigned,
-      sessionAge: timestamp ? (Date.now() - timestamp) / (1000 * 60 * 60 * 24) : null
-    });
-  }, [isAuthenticated, isConnected, isOnCorrectNetwork, isLoading, isInitialized, address, timestamp, hasSigned]);
+// Protected route component
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated } = useAuthStore();
 
-  // Show loading while initializing or loading persistence
-  if (!isInitialized || isLoading) {
-    console.log('[ProtectedRoute] Showing loader - not initialized or loading');
-    return <PageLoader />
+  if (!isAuthenticated) {
+    return <Navigate to="/connect" replace />;
   }
 
-  // Check if we have a valid auth session
-  const hasValidAuth = isAuthenticated && address && timestamp;
-  const isSessionExpired = timestamp ? (Date.now() - timestamp) > (7 * 24 * 60 * 60 * 1000) : false;
+  return <>{children}</>;
+};
 
-  // Redirect if not properly authenticated or session expired
-  if (!hasValidAuth || isSessionExpired || !isConnected || !isOnCorrectNetwork) {
-    console.log('[ProtectedRoute] Redirecting to connect - invalid auth:', {
-      hasValidAuth,
-      isSessionExpired,
-      isConnected,
-      isOnCorrectNetwork
-    });
-    return <Navigate to="/connect" replace />
-  }
-
-  console.log('[ProtectedRoute] Access granted - rendering protected content');
-  return <>{children}</>
-}
-
-// Auth Route Component (redirect if already authenticated)
-const AuthRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isConnected, isOnCorrectNetwork, isLoading, isInitialized, address, timestamp, hasSigned } = useAuthStore()
-
-  // Debug auth route decisions
-  React.useEffect(() => {
-    console.log('[AuthRoute] Auth state check:', {
-      isAuthenticated,
-      isConnected,
-      isOnCorrectNetwork,
-      isLoading,
-      isInitialized,
-      hasAddress: !!address,
-      hasSigned,
-      sessionAge: timestamp ? (Date.now() - timestamp) / (1000 * 60 * 60 * 24) : null
-    });
-  }, [isAuthenticated, isConnected, isOnCorrectNetwork, isLoading, isInitialized, address, timestamp, hasSigned]);
-
-  // Show loading while initializing or loading persistence
-  if (!isInitialized || isLoading) {
-    console.log('[AuthRoute] Showing loader - not initialized or loading');
-    return <PageLoader />
-  }
-
-  // Check if we have a valid complete auth session
-  const hasValidAuth = isAuthenticated && address && timestamp && isConnected && isOnCorrectNetwork;
-  const isSessionExpired = timestamp ? (Date.now() - timestamp) > (7 * 24 * 60 * 60 * 1000) : false;
-
-  // Redirect if already fully authenticated and session is valid
-  if (hasValidAuth && !isSessionExpired) {
-    console.log('[AuthRoute] Redirecting to game - already authenticated');
-    return <Navigate to="/game" replace />
-  }
-
-  console.log('[AuthRoute] Showing auth page - not fully authenticated');
-  return <>{children}</>
-}
-
-// Auth sync component
-const AuthSync = ({ children }: { children: React.ReactNode }) => {
-  useAuthSync()
-  return <>{children}</>
-}
-
-// Main App Content
-const AppContent = () => {
-  return (
-    <AuthSync>
-      <Router>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route
-              path="/connect"
-              element={
-                <AuthRoute>
-                  <ConnectPage />
-                </AuthRoute>
-              }
-            />
-            {/* HomePage is NOT protected */}
-            <Route
-              path="/"
-              element={<HomePage />}
-            />
-            {/* Only GamePage is protected */}
-            <Route
-              path="/game"
-              element={
-                <ProtectedRoute>
-                  <GamePage />
-                </ProtectedRoute>
-              }
-            />
-            {/* CreateCheckpointPage is also protected */}
-            <Route
-              path="/create"
-              element={
-                <ProtectedRoute>
-                  <CreateCheckpointPage />
-                </ProtectedRoute>
-              }
-            />
-            {/* SponsorDashboard is also protected */}
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <SponsorDashboard />
-                </ProtectedRoute>
-              }
-            />
-            {/* CheckpointDetailPage is also protected */}
-            <Route
-              path="/checkpoint/:id"
-              element={
-                <ProtectedRoute>
-                  <CheckpointDetailPage />
-                </ProtectedRoute>
-              }
-            />
-            {/* Default redirect to home, not connect */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </Router>
-    </AuthSync>
-  )
-}
-
-function App() {
+// Main App component
+const App: React.FC = () => {
   return (
     <WagmiProvider config={wagmiAdapter.wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <AppContent />
+        <AuthWrapper>
+          <Router>
+            <div className="App min-h-screen bg-slate-900">
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/connect" element={<ConnectPage />} />
+                  <Route
+                    path="/game"
+                    element={
+                      <ProtectedRoute>
+                        <GamePage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="/create-checkpoint" element={
+                    <ProtectedRoute>
+                      <CreateCheckpointPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/sponsor-dashboard" element={
+                    <ProtectedRoute>
+                      <SponsorDashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/checkpoint/:id" element={
+                    <ProtectedRoute>
+                      <CheckpointDetailPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Suspense>
+            </div>
+          </Router>
+        </AuthWrapper>
       </QueryClientProvider>
     </WagmiProvider>
   );
-}
+};
 
 export default App;

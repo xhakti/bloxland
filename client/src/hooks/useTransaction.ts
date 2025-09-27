@@ -1,19 +1,23 @@
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
-import { parseEther } from 'viem'
+import {
+  useAccount,
+  useWriteContract,
+  useWaitForTransactionReceipt,
+} from "wagmi";
+import { parseEther } from "viem";
 
 export const useTransaction = () => {
-  const { address } = useAccount()
-  const { data: hash, writeContract, isPending } = useWriteContract()
+  const { address } = useAccount();
+  const { data: hash, writeContract, isPending } = useWriteContract();
 
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = 
+  const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({
       hash,
-    })
+    });
 
   // Example function to send a simple ETH transaction
   const sendTestTransaction = async (toAddress: string, amount: string) => {
     if (!address) {
-      throw new Error('Wallet not connected')
+      throw new Error("Wallet not connected");
     }
 
     try {
@@ -22,8 +26,8 @@ export const useTransaction = () => {
       const tx = {
         to: toAddress as `0x${string}`,
         value: parseEther(amount),
-      }
-      
+      };
+
       // For contract interactions, you would use:
       // writeContract({
       //   address: 'YOUR_CONTRACT_ADDRESS',
@@ -32,13 +36,13 @@ export const useTransaction = () => {
       //   args: [arg1, arg2],
       // })
 
-      console.log('Sending transaction:', tx)
-      return tx
+      console.log("Sending transaction:", tx);
+      return tx;
     } catch (error) {
-      console.error('Transaction failed:', error)
-      throw error
+      console.error("Transaction failed:", error);
+      throw error;
     }
-  }
+  };
 
   return {
     sendTestTransaction,
@@ -46,6 +50,6 @@ export const useTransaction = () => {
     isPending,
     isConfirming,
     isConfirmed,
-    address
-  }
-}
+    address,
+  };
+};

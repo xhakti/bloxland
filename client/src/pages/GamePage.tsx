@@ -4,8 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { useDisconnect } from 'wagmi';
 import { useAuthStore } from '../stores/authStore';
 import MapContainer from '../components/map/MapContainer';
-import PlayerHUD from '../components/game/PlayerHUD';
-import GameControls from '../components/game/GameControls';
 import BottomBar from '../components/BottomBar';
 import UserTypeModal from '../components/ui/UserTypeModal';
 
@@ -73,7 +71,7 @@ const GamePage: React.FC = () => {
                 avatarUrl={avatarUrl}
                 showCheckpoints={true}
             />
-            <BottomBar 
+            <BottomBar
                 username={username || undefined}
                 ensName={ensName || undefined}
                 onLogout={handleLogout}

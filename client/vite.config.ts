@@ -10,5 +10,12 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-  },  
+  },
+  // Dev server configuration
+  server: {
+    host: true, // Listen on all network interfaces (0.0.0.0) so tunnels/proxies work
+    allowedHosts: true, // Allow ALL hosts (e.g. ngrok / codespaces / custom domains)
+    // If you prefer to restrict later, replace `true` with an array of hostnames:
+    // allowedHosts: ["despairfully-moonlit-dawna.ngrok-free.dev"]
+  },
 });
