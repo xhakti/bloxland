@@ -54,13 +54,13 @@ export async function getEnergizeSignature({
     const types = {
       BloxlandEnergize: [
         { name: "player", type: "address" },
-        { name: "_amount", type: "uint256" },
+        { name: "amount", type: "uint256" },
       ],
     } as const;
 
     const value = {
       player,
-      _amount: BigInt(amount),
+      amount: BigInt(amount),
     } as const;
 
     const signature = await walletClient.signTypedData({

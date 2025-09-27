@@ -70,15 +70,25 @@ export default function GameIntegrationsPage() {
   const [playId, setPlayId] = useState("");
   const decimals = useMemo(() => 18, []);
 
+  // Energy balance hook - call at component level
+  const energyBalance = energy.useBalanceOf(address);
+
   // Helpers
   const onEnergize = async () => {
-    if (!address) return console.warn("Wallet not connected");
+    if (!address) {
+      console.warn("Wallet not connected");
+      alert("Please connect your wallet first");
+      return;
+    }
     try {
       console.log("[Integrations] Energize start", { address, amount });
-      await energy.energize({ amount, decimalsHint: decimals });
-      console.log("[Integrations] Energize submitted", { hash: energy.hash });
+      const tx = await energy.energize({ amount, decimalsHint: decimals });
+      console.log("[Integrations] Energize submitted", { hash: energy.hash, tx });
+      alert(`Energize transaction submitted! You will receive ${amount} ENERGY tokens. Transaction hash: ${tx}`);
     } catch (e) {
+      const errorMessage = `Energize failed: ${e instanceof Error ? e.message : 'Unknown error'}`;
       console.error("[Integrations] Energize error", e);
+      alert(errorMessage);
     }
   };
 
@@ -88,17 +98,45 @@ export default function GameIntegrationsPage() {
         gameId: gameId.toString(),
         amount,
       });
+
+      // Check if balance data is available
+      if (!energyBalance.data) {
+        console.log("[Integrations] Energy balance not available yet");
+        alert("Energy balance is loading, please wait...");
+        return;
+      }
+
+      const userEnergy = energyBalance.data as unknown as bigint;
+      console.log("[Integrations] User energy balance:", userEnergy.toString());
+
       const energyAmount = BigInt(10); // per spec, deduct 50 overall; demo uses 10 per click
+      
+      if (userEnergy < energyAmount) {
+        const insufficientMessage = `Insufficient energy balance! You have ${userEnergy.toString()} ENERGY but need ${energyAmount.toString()} ENERGY to play. Please energize first.`;
+        console.log("[Integrations] User energy insufficient:", insufficientMessage);
+        alert(insufficientMessage);
+        return;
+      }
+
+      console.log("[Integrations] Energy balance sufficient, proceeding with play...");
       const tx = await blox.play({ gameId, energyAmount });
       console.log("[Integrations] Play tx submitted", tx);
+      
+      // Show success message
+      alert(`Play transaction submitted successfully! Transaction hash: ${tx}`);
+      
       // Note: retrieving playId from logs is chain/tooling dependent; user can enter it below
     } catch (e) {
+      const errorMessage = `Play failed: ${e instanceof Error ? e.message : 'Unknown error'}`;
       console.error("[Integrations] Play error", e);
+      alert(errorMessage);
     }
   };
 
   const onAnswer = async () => {
     try {
+      console.log("this is answer")
+
       const pid = BigInt(playId);
       const ans = BigInt(answerDice || "1");
       console.log("[Integrations] Answer start", {
@@ -121,6 +159,7 @@ export default function GameIntegrationsPage() {
         ans: ans.toString(),
         result,
       });
+      
       const tx = await blox.signAndAnswerWithBackend({
         playId: pid,
         answerValue: ans,
@@ -148,7 +187,18 @@ export default function GameIntegrationsPage() {
     <div className="min-h-screen w-full bg-black text-white">
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         <h1 className="text-2xl font-bold">Game Integrations</h1>
-        <p className="text-gray-300">Wallet: {address ?? "Not connected"}</p>
+        <div className="flex flex-col gap-2">
+          <p className="text-gray-300">Wallet: {address ?? "Not connected"}</p>
+          <p className="text-gray-300">
+            Energy Balance: {
+              energyBalance.isLoading 
+                ? "Loading..." 
+                : energyBalance.data 
+                  ? `${(energyBalance.data as unknown as bigint).toString()} ENERGY`
+                  : "Not available"
+            }
+          </p>
+        </div>
 
         <Section title="1) Energize (EIP-712 -> EnergyToken.energizeWithSignature)">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
