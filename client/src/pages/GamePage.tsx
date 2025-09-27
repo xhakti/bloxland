@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDisconnect } from 'wagmi';
 import { useAuthStore } from '../stores/authStore';
@@ -7,11 +7,13 @@ import MapContainer from '../components/map/MapContainer';
 import PlayerHUD from '../components/game/PlayerHUD';
 import GameControls from '../components/game/GameControls';
 import BottomBar from '../components/BottomBar';
+import UserTypeModal from '../components/ui/UserTypeModal';
 
 const GamePage: React.FC = () => {
     const navigate = useNavigate();
     const { disconnect } = useDisconnect();
-    const { logout, username, ensName } = useAuthStore();
+    const { logout, username, ensName, userType, setUserType } = useAuthStore();
+    const [showUserTypeModal, setShowUserTypeModal] = useState(false);
 
     const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
     const [isMapReady, setIsMapReady] = useState(false);
@@ -50,6 +52,18 @@ const GamePage: React.FC = () => {
         }
     }, [logout, disconnect, navigate]);
 
+    // Show user type selection modal if user type is not set
+    useEffect(() => {
+        if (!userType) {
+            setShowUserTypeModal(true);
+        }
+    }, [userType]);
+
+    const handleUserTypeSelection = (selectedUserType: 'user' | 'sponsor') => {
+        setUserType(selectedUserType);
+        setShowUserTypeModal(false);
+    };
+
     return (
         <div className="relative w-full h-screen overflow-hidden bg-gray-900">
             {/* Map Container with Ready Player Me Avatar */}
@@ -73,6 +87,13 @@ const GamePage: React.FC = () => {
                     <GameControls />
                 </>
             )} */}
+
+            {/* User Type Selection Modal */}
+            <UserTypeModal
+                isOpen={showUserTypeModal}
+                onClose={() => {}} // Prevent closing without selection
+                onSelectUserType={handleUserTypeSelection}
+            />
         </div>
     );
 };

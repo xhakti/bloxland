@@ -10,6 +10,13 @@ interface Checkpoint {
     longitude: number;
     name: string;
     createdAt: string;
+    // Sponsor fields
+    sponsorName?: string;
+    description?: string;
+    logoUrl?: string;
+    reward?: number;
+    task?: string;
+    participations?: number;
 }
 
 interface MapContainerProps {
@@ -67,20 +74,56 @@ const MapContainer: React.FC<MapContainerProps> = ({
     const createCheckpointMarker = useCallback((checkpoint: Checkpoint) => {
         if (!mapRef.current) return null;
 
-        // Create pulsing yellow marker element
+        // Create marker element with logo and name
         const el = document.createElement('div');
-        el.className = 'checkpoint-marker';
-        el.innerHTML = `
-            <div class="relative">
-                <div class="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center animate-pulse">
-                    <div class="w-3 h-3 bg-yellow-600 rounded-full"></div>
+        el.className = 'checkpoint-marker cursor-pointer';
+        
+        // Different display for sponsor vs user checkpoints
+        if (checkpoint.sponsorName) {
+            // Sponsor checkpoint with logo and branding
+            el.innerHTML = `
+                <div class="relative group">
+                    <div class="w-12 h-12 bg-black border-2 border-yellow-400 rounded-lg overflow-hidden shadow-lg hover:scale-110 transition-transform">
+                        ${checkpoint.logoUrl 
+                            ? `<img src="${checkpoint.logoUrl}" alt="${checkpoint.sponsorName}" class="w-full h-full object-cover" />`
+                            : `<div class="w-full h-full bg-yellow-400 flex items-center justify-center">
+                                 <div class="w-6 h-6 bg-black rounded-full"></div>
+                               </div>`
+                        }
+                    </div>
+                    <div class="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-black/90 text-white text-xs px-3 py-2 rounded-lg whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity border border-yellow-400/30">
+                        <div class="font-semibold">${checkpoint.name}</div>
+                        <div class="text-yellow-400 text-xs">${checkpoint.sponsorName}</div>
+                        <div class="text-gray-300 text-xs">${checkpoint.reward || 100} tokens</div>
+                    </div>
+                    <div class="absolute inset-0 bg-yellow-400 rounded-lg animate-ping opacity-30"></div>
                 </div>
-                <div class="absolute inset-0 bg-yellow-400 rounded-full animate-ping opacity-75"></div>
-                <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded whitespace-nowrap pointer-events-none">
-                    ${checkpoint.name}
+            `;
+        } else {
+            // Regular user checkpoint
+            el.innerHTML = `
+                <div class="relative group">
+                    <div class="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center animate-pulse hover:scale-110 transition-transform shadow-lg">
+                        <div class="w-4 h-4 bg-yellow-600 rounded-full"></div>
+                    </div>
+                    <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                        ${checkpoint.name}
+                    </div>
+                    <div class="absolute inset-0 bg-yellow-400 rounded-full animate-ping opacity-75"></div>
                 </div>
-            </div>
-        `;
+            `;
+        }
+
+        // Add click handler for checkpoint interaction
+        el.addEventListener('click', () => {
+            if (checkpoint.sponsorName) {
+                // For sponsor checkpoints, navigate to detail page
+                window.location.href = `/checkpoint/${checkpoint.id}`;
+            } else {
+                // For user checkpoints, show simple info
+                alert(`Checkpoint: ${checkpoint.name}\nClick to interact!`);
+            }
+        });
 
         // Create and return marker
         const marker = new mapboxgl.Marker(el)

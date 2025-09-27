@@ -13,6 +13,7 @@ interface PersistedAuthState {
   ensName: string | null;
   timestamp: number | null;
   hasSigned: boolean;
+  userType: 'user' | 'sponsor' | null;
 }
 
 interface AuthState {
@@ -24,6 +25,7 @@ interface AuthState {
   ensName: string | null;
   timestamp: number | null;
   hasSigned: boolean;
+  userType: 'user' | 'sponsor' | null;
 
   // Wallet connection state
   isConnected: boolean;
@@ -47,6 +49,7 @@ interface AuthState {
     ensName: string;
   }) => void;
   setHasSigned: (hasSigned: boolean) => void;
+  setUserType: (userType: 'user' | 'sponsor') => void;
   logout: () => void;
   setLoading: (loading: boolean) => void;
   setInitialized: (initialized: boolean) => void;
@@ -64,6 +67,7 @@ export const useAuthStore = create<AuthState>()(
       ensName: null,
       timestamp: null,
       hasSigned: false,
+      userType: null,
       isConnected: false,
       chainId: null,
       isOnCorrectNetwork: false,
@@ -90,6 +94,7 @@ export const useAuthStore = create<AuthState>()(
             ensName: null,
             timestamp: null,
             hasSigned: false,
+            userType: null,
           });
         }
       },
@@ -133,6 +138,11 @@ export const useAuthStore = create<AuthState>()(
         set({ hasSigned });
       },
 
+      setUserType: (userType) => {
+        console.log("[AuthStore] setUserType called:", userType);
+        set({ userType });
+      },
+
       logout: () => {
         console.log(
           "[AuthStore] logout called, resetting all auth state including hasSigned"
@@ -145,6 +155,7 @@ export const useAuthStore = create<AuthState>()(
           ensName: null,
           timestamp: null,
           hasSigned: false,
+          userType: null,
         });
       },
 
@@ -167,6 +178,7 @@ export const useAuthStore = create<AuthState>()(
               ensName: null,
               timestamp: null,
               hasSigned: false,
+              userType: null,
             });
           }
         }
@@ -182,6 +194,7 @@ export const useAuthStore = create<AuthState>()(
         ensName: state.ensName,
         timestamp: state.timestamp,
         hasSigned: state.hasSigned,
+        userType: state.userType,
       }),
       merge: (persistedState, currentState) => {
         console.log("[AuthStore] merge called with:", {
@@ -221,6 +234,7 @@ export const useAuthStore = create<AuthState>()(
             state.ensName = null;
             state.timestamp = null;
             state.hasSigned = false;
+            state.userType = null;
           }
         }
         return state;

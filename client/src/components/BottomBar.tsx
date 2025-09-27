@@ -8,7 +8,9 @@ import {
   LogOut,
   User,
   MapPin,
+  BarChart3,
 } from "lucide-react";
+import { useAuthStore } from "../stores/authStore";
 
 interface BottomBarProps {
   username?: string;
@@ -22,6 +24,7 @@ const BottomBar: React.FC<BottomBarProps> = ({
   onLogout,
 }) => {
   const navigate = useNavigate();
+  const { userType } = useAuthStore();
   const [showSidebar, setShowSidebar] = useState(false);
 
   return (
@@ -67,6 +70,15 @@ const BottomBar: React.FC<BottomBarProps> = ({
                   {username || "Explorer"}
                 </p>
                 <p className="text-gray-400 text-sm">{ensName || "No ENS"}</p>
+                {userType && (
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    userType === 'sponsor' 
+                      ? 'bg-yellow-400/20 text-yellow-400' 
+                      : 'bg-blue-400/20 text-blue-400'
+                  }`}>
+                    {userType === 'sponsor' ? 'Sponsor' : 'User'}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -84,28 +96,47 @@ const BottomBar: React.FC<BottomBarProps> = ({
               <span className="text-lg">Home</span>
             </button>
 
-            <button
-              onClick={() => {
-                setShowSidebar(false);
-                navigate("/create");
-              }}
-              className="w-full flex items-center space-x-3 px-4 py-3 text-white hover:bg-white/10 rounded-lg transition-colors"
-            >
-              <MapPin className="w-5 h-5 text-yellow-400" />
-              <span className="text-lg">Create Checkpoint</span>
-            </button>
+            {/* Sponsor-specific menu items */}
+            {userType === 'sponsor' && (
+              <>
+                <button
+                  onClick={() => {
+                    setShowSidebar(false);
+                    navigate("/dashboard");
+                  }}
+                  className="w-full flex items-center space-x-3 px-4 py-3 text-white hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <BarChart3 className="w-5 h-5 text-yellow-400" />
+                  <span className="text-lg">Dashboard</span>
+                </button>
 
-            <button
-              onClick={() => {
-                setShowSidebar(false);
-                // Add leaderboard navigation later
-                console.log("Leaderboard clicked");
-              }}
-              className="w-full flex items-center space-x-3 px-4 py-3 text-white hover:bg-white/10 rounded-lg transition-colors"
-            >
-              <Trophy className="w-5 h-5" />
-              <span className="text-lg">Leaderboard</span>
-            </button>
+                <button
+                  onClick={() => {
+                    setShowSidebar(false);
+                    navigate("/create");
+                  }}
+                  className="w-full flex items-center space-x-3 px-4 py-3 text-white hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <MapPin className="w-5 h-5 text-yellow-400" />
+                  <span className="text-lg">Create Checkpoint</span>
+                </button>
+              </>
+            )}
+
+            {/* User-specific menu items */}
+            {userType === 'user' && (
+              <button
+                onClick={() => {
+                  setShowSidebar(false);
+                  // Add leaderboard navigation later
+                  console.log("Leaderboard clicked");
+                }}
+                className="w-full flex items-center space-x-3 px-4 py-3 text-white hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <Trophy className="w-5 h-5" />
+                <span className="text-lg">Leaderboard</span>
+              </button>
+            )}
 
             <button
               onClick={() => {

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapPin, Save, ArrowLeft } from "lucide-react";
+import { MapPin, Save, ArrowLeft, Upload, Image } from "lucide-react";
 import mapboxgl from "mapbox-gl";
+import { useAuthStore } from "../stores/authStore";
+import LocationConfirmModal from "../components/ui/LocationConfirmModal";
 
 // Mapbox access token - you'll need to set this
 const MAPBOX_TOKEN =
@@ -13,10 +15,18 @@ interface Checkpoint {
   longitude: number;
   name: string;
   createdAt: string;
+  // Sponsor fields
+  sponsorName?: string;
+  description?: string;
+  logoUrl?: string;
+  reward?: number;
+  task?: string;
+  participations?: number;
 }
 
 const CreateCheckpointPage: React.FC = () => {
   const navigate = useNavigate();
+  const { userType } = useAuthStore();
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
@@ -26,6 +36,14 @@ const CreateCheckpointPage: React.FC = () => {
   >(null);
   const [checkpointName, setCheckpointName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showLocationConfirm, setShowLocationConfirm] = useState(false);
+  const [tempLocation, setTempLocation] = useState<[number, number] | null>(null);
+
+  // Sponsor-specific fields
+  const [sponsorName, setSponsorName] = useState("");
+  const [description, setDescription] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -37,10 +55,11 @@ const CreateCheckpointPage: React.FC = () => {
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/standard",
       center: [-74.006, 40.7128], // Default to NYC
-      zoom: 10,
+      zoom: 15,
       attributionControl: false,
-      pitch: 0, // Start with flat view for checkpoint creation
-      bearing: 0,
+      pitch: 70, // 3D vertical view (same as MapContainer)
+      bearing: 0, // North-facing
+      maxPitch: 85,
       antialias: true,
     });
 
@@ -78,27 +97,16 @@ const CreateCheckpointPage: React.FC = () => {
     // Add click handler for map
     map.current.on("click", (e) => {
       const { lng, lat } = e.lngLat;
-      setSelectedLocation([lng, lat]);
-
-      // Remove existing marker
-      if (marker.current) {
-        marker.current.remove();
+      
+      if (userType === 'sponsor') {
+        // For sponsors, show confirmation modal first
+        setTempLocation([lng, lat]);
+        setShowLocationConfirm(true);
+      } else {
+        // For users, directly set location
+        setSelectedLocation([lng, lat]);
+        addMarkerToMap([lng, lat]);
       }
-
-      // Create pulsing yellow marker
-      const el = document.createElement("div");
-      el.className = "checkpoint-marker";
-      el.innerHTML = `
-        <div class="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center relative animate-pulse">
-          <div class="w-4 h-4 bg-yellow-600 rounded-full"></div>
-          <div class="absolute inset-0 bg-yellow-400 rounded-full animate-ping opacity-75"></div>
-        </div>
-      `;
-
-      // Add new marker
-      marker.current = new mapboxgl.Marker(el)
-        .setLngLat([lng, lat])
-        .addTo(map.current!);
     });
 
     // Listen to geolocate events (same as MapContainer)
@@ -115,8 +123,15 @@ const CreateCheckpointPage: React.FC = () => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { longitude, latitude } = position.coords;
-          map.current?.setCenter([longitude, latitude]);
-          map.current?.setZoom(14);
+          // Fly to user location with 3D overhead view
+          map.current?.flyTo({
+            center: [longitude, latitude],
+            zoom: 18,
+            pitch: 70, // Maintain 3D vertical view
+            bearing: 0,
+            duration: 2000,
+            essential: true
+          });
         },
         (error) => {
           console.log("Geolocation error:", error);
@@ -131,13 +146,75 @@ const CreateCheckpointPage: React.FC = () => {
     };
   }, []);
 
+  // Add marker to map
+  const addMarkerToMap = (location: [number, number]) => {
+    // Remove existing marker
+    if (marker.current) {
+      marker.current.remove();
+    }
+
+    // Create pulsing yellow marker
+    const el = document.createElement("div");
+    el.className = "checkpoint-marker";
+    el.innerHTML = `
+      <div class="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center relative animate-pulse">
+        <div class="w-4 h-4 bg-yellow-600 rounded-full"></div>
+        <div class="absolute inset-0 bg-yellow-400 rounded-full animate-ping opacity-75"></div>
+      </div>
+    `;
+
+    // Add new marker
+    marker.current = new mapboxgl.Marker(el)
+      .setLngLat(location)
+      .addTo(map.current!);
+  };
+
+  // Handle location confirmation
+  const handleLocationConfirm = () => {
+    if (tempLocation) {
+      setSelectedLocation(tempLocation);
+      addMarkerToMap(tempLocation);
+      setTempLocation(null);
+    }
+    setShowLocationConfirm(false);
+  };
+
+  const handleLocationCancel = () => {
+    setTempLocation(null);
+    setShowLocationConfirm(false);
+  };
+
+  // Handle logo file upload
+  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setLogoFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setLogoPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const saveCheckpoint = () => {
     if (!selectedLocation || !checkpointName.trim()) {
       alert("Please select a location and enter a checkpoint name");
       return;
     }
 
+    // Additional validation for sponsors
+    if (userType === 'sponsor') {
+      if (!sponsorName.trim() || !description.trim() || !logoFile) {
+        alert("Please fill in all sponsor fields including logo upload");
+        return;
+      }
+    }
+
     setIsLoading(true);
+
+    // Convert logo to base64 for local storage (temporary solution)
+    const logoUrl = logoPreview || undefined;
 
     const checkpoint: Checkpoint = {
       id: Date.now().toString(),
@@ -145,6 +222,15 @@ const CreateCheckpointPage: React.FC = () => {
       longitude: selectedLocation[0],
       name: checkpointName.trim(),
       createdAt: new Date().toISOString(),
+      // Add sponsor fields if user is sponsor
+      ...(userType === 'sponsor' && {
+        sponsorName: sponsorName.trim(),
+        description: description.trim(),
+        logoUrl: logoUrl,
+        reward: 100, // Temporary fixed reward
+        task: "Play Stone Paper Scissors", // Temporary fixed task
+        participations: 0,
+      }),
     };
 
     // Get existing checkpoints from localStorage
@@ -204,31 +290,123 @@ const CreateCheckpointPage: React.FC = () => {
       {/* Map Container */}
       <div ref={mapContainer} className="w-full h-full" />
 
-      {/* Checkpoint Name Input */}
+      {/* Checkpoint Form */}
       {selectedLocation && (
-        <div className="absolute bottom-4 left-4 right-4 z-50">
-          <div className="bg-black/80 backdrop-blur-sm border border-white/20 rounded-lg p-4">
-            <label className="block text-white text-sm font-medium mb-2">
-              Checkpoint Name
-            </label>
-            <input
-              type="text"
-              value={checkpointName}
-              onChange={(e) => setCheckpointName(e.target.value)}
-              placeholder="Enter checkpoint name..."
-              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              maxLength={50}
-            />
-            <p className="text-gray-400 text-xs mt-1">
-              Location: {selectedLocation[1].toFixed(6)},{" "}
-              {selectedLocation[0].toFixed(6)}
-            </p>
+        <div className="absolute bottom-4 left-4 right-4 z-50 max-h-[60vh] overflow-y-auto">
+          <div className="bg-black/90 backdrop-blur-sm border border-white/20 rounded-lg p-4">
+            <div className="space-y-4">
+              {/* Basic Info */}
+              <div>
+                <label className="block text-white text-sm font-medium mb-2">
+                  Checkpoint Name
+                </label>
+                <input
+                  type="text"
+                  value={checkpointName}
+                  onChange={(e) => setCheckpointName(e.target.value)}
+                  placeholder="Enter checkpoint name..."
+                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  maxLength={50}
+                />
+              </div>
+
+              {/* Sponsor-specific fields */}
+              {userType === 'sponsor' && (
+                <>
+                  <div>
+                    <label className="block text-white text-sm font-medium mb-2">
+                      Sponsor Name
+                    </label>
+                    <input
+                      type="text"
+                      value={sponsorName}
+                      onChange={(e) => setSponsorName(e.target.value)}
+                      placeholder="Enter your company/brand name..."
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      maxLength={100}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-white text-sm font-medium mb-2">
+                      Description
+                    </label>
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Describe your checkpoint and what users will experience..."
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none"
+                      rows={3}
+                      maxLength={500}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-white text-sm font-medium mb-2">
+                      Logo Upload
+                    </label>
+                    <div className="flex items-center space-x-4">
+                      <label className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg cursor-pointer transition-colors">
+                        <Upload className="w-4 h-4 text-white" />
+                        <span className="text-white text-sm">Choose Logo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          className="hidden"
+                        />
+                      </label>
+                      {logoPreview && (
+                        <div className="w-12 h-12 bg-white/10 rounded-lg overflow-hidden border border-white/20">
+                          <img
+                            src={logoPreview}
+                            alt="Logo preview"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-white text-sm font-medium mb-2">
+                        Reward
+                      </label>
+                      <div className="px-3 py-2 bg-white/10 border border-white/20 rounded-lg">
+                        <span className="text-yellow-400 font-medium">100 Tokens</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-white text-sm font-medium mb-2">
+                        Task
+                      </label>
+                      <div className="px-3 py-2 bg-white/10 border border-white/20 rounded-lg">
+                        <span className="text-white text-sm">Stone Paper Scissors</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Location Info */}
+              <div className="pt-2 border-t border-white/20">
+                <p className="text-gray-400 text-xs">
+                  📍 Location: {selectedLocation[1].toFixed(6)}, {selectedLocation[0].toFixed(6)}
+                </p>
+                {userType === 'sponsor' && (
+                  <p className="text-yellow-400 text-xs mt-1">
+                    💰 Users will earn 100 tokens for completing your checkpoint
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
 
       {/* Custom styles for marker animation */}
-      <style jsx>{`
+      <style>{`
         .checkpoint-marker {
           cursor: pointer;
         }
@@ -245,6 +423,14 @@ const CreateCheckpointPage: React.FC = () => {
           animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
         }
       `}</style>
+
+      {/* Location Confirmation Modal */}
+      <LocationConfirmModal
+        isOpen={showLocationConfirm}
+        location={tempLocation}
+        onConfirm={handleLocationConfirm}
+        onCancel={handleLocationCancel}
+      />
     </div>
   );
 };

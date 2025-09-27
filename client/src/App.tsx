@@ -11,6 +11,8 @@ const HomePage = React.lazy(() => import('./pages/HomePage'));
 const GamePage = React.lazy(() => import('./pages/GamePage'));
 const ConnectPage = React.lazy(() => import('./pages/ConnectPage'));
 const CreateCheckpointPage = React.lazy(() => import('./pages/CreateCheckpointPage'));
+const SponsorDashboard = React.lazy(() => import('./pages/SponsorDashboard'));
+const CheckpointDetailPage = React.lazy(() => import('./pages/CheckpointDetailPage'));
 
 import './index.css';
 
@@ -157,6 +159,24 @@ const AppContent = () => {
               element={
                 <ProtectedRoute>
                   <CreateCheckpointPage />
+                </ProtectedRoute>
+              }
+            />
+            {/* SponsorDashboard is also protected */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <SponsorDashboard />
+                </ProtectedRoute>
+              }
+            />
+            {/* CheckpointDetailPage is also protected */}
+            <Route
+              path="/checkpoint/:id"
+              element={
+                <ProtectedRoute>
+                  <CheckpointDetailPage />
                 </ProtectedRoute>
               }
             />
