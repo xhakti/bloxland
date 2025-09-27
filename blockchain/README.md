@@ -1,5 +1,11 @@
 # Bloxland Contracts
 
+## Configuration
+
+Copy `.env.template` to `.env` and replace the private key and the backend signer.
+
+## Mini Games Contract
+
 The `Bloxland` contract hold many mini-games to be played on-chain.
 
 It uses Pyth Network to fetch external resources such an random numbers using
@@ -19,26 +25,19 @@ There are four games registered:
 The contract also supports off-chain deciding on winners of partner games using
 EIP-712 signature standard.
 
-## Configuration
-
-Copy `.env.template` to `.env` and replace the private key and the backend signer.
-
-## Deployment
+### Deployment
 
 ```shell
 pnpm exec hardhat --network base-sepolia ignition deploy ignition/modules/Bloxland.ts
 ```
 
-## Testing
+## ENS Contract
 
-npx hardhat run scripts/deployBloxlandENS.ts --network sepolia
+A [subname registar](https://docs.ens.domains/wrapper/creating-subname-registrar)
+has been developed as `BloxlandENS` contract.
 
+### Deployment
 
-##
-
-npx hardhat run scripts/deployBloxlandENS.ts --network localhost
-
-
-
-# deploy ens contract 
-❯ pnpm exec hardhat --network sepolia ignition deploy ignition/modules/BloxlandSubnameRegistrar.ts
+```shell
+pnpm exec hardhat --network sepolia ignition deploy ignition/modules/BloxlandSubnameRegistrar.ts
+```
