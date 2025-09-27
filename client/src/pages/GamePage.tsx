@@ -36,12 +36,12 @@ const GamePage: React.FC = () => {
             />
 
             {/* Game UI Overlay */}
-            {isMapReady && (
+            {/* {isMapReady && (
                 <>
                     <PlayerHUD userLocation={userLocation} />
                     <GameControls />
                 </>
-            )}
+            )} */}
         </div>
     );
 };
