@@ -22,6 +22,27 @@
       "when": 1758942750845,
       "tag": "0002_cute_chat",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1758952512502,
+      "tag": "0003_zippy_selene",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1758953320677,
+      "tag": "0004_lying_vengeance",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1758953706163,
+      "tag": "0005_quick_vapor",
+      "breakpoints": true
     }
   ]
 }

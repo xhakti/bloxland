@@ -26,6 +26,13 @@ export const addClaimedRewardsSchema = z.object({
   eventType: z.enum(['MINI_GAMES', 'SOCIAL_QUEST', 'PARTNER_EVENTS']),
 });
 
+
+export const registerUserSchema = z.object({
+  address: z.string().min(1, "User address is required"),
+  username: z.string().min(3, "Username must be at least 3 characters long"),
+  email: z.string().email("Invalid email format").optional()
+})
+
 export const updateUserSchema = z.object({
   level: z.number().int().min(1).optional(),
   distanceTravelled: z.string().refine(

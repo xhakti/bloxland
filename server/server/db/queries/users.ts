@@ -21,6 +21,11 @@ export async function getUserByAddress(userAddress: string) {
   return result[0] || null;
 }
 
+export async function getUserByUsername(username: string) {
+  const result = await db.select().from(usersTable).where(eq(usersTable.username, username));
+  return result[0] || null;
+}
+
 export async function createUser(user: UserInsertSchema) {
   const result = await db.insert(usersTable).values(user).returning();
   return result[0];

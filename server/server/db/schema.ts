@@ -26,6 +26,8 @@ export const eventTypeEnum = pgEnum('event_type', ['MINI_GAMES', 'SOCIAL_QUEST',
 export const usersTable = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   userAddress: text("user_address").notNull().unique(),
+  username : text("username").notNull().unique(),
+  email : text("email").unique(),
   level: integer("level").notNull().default(1),
   distanceTravelled: numeric("distance_travelled", { precision: 20, scale: 2 }).notNull().default("0"),
   checkpointsConquered: integer("checkpoints_conquered").notNull().default(0),

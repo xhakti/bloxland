@@ -13,6 +13,7 @@ import {
   updateUserSchema,
   questIdParamSchema,
   userAddressParamSchema,
+  registerUserSchema,
 } from "../utils/validationSchemas";
 
 import * as UserService from "../services/user/index";
@@ -90,6 +91,18 @@ export const updateUserController: RequestHandler = async (req, res) => {
       const { address, ...updateData } = data;
       return await UserService.updateUserService(address, updateData);
     },
+    scope: SCOPE.USER,
+  });
+};
+
+// Register user
+export const registerUserController: RequestHandler = async (req, res) => {
+  await ControllerHelper({
+    res,
+    logMessage: "Register User",
+    validationSchema: registerUserSchema,
+    validationData: req.body,
+    serviceMethod: async (data: any) => await UserService.registerUserService(data),
     scope: SCOPE.USER,
   });
 };
