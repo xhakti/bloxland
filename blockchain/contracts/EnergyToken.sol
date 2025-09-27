@@ -32,7 +32,7 @@ contract EnergyToken is ERC20, EIP712, AccessControl {
 
   function _hash(address _player, uint256 _amount) internal view returns (bytes32) {
     return _hashTypedDataV4(keccak256(abi.encode(
-      keccak256("BloxlandEnergize(address player,uint256 _amount)"),
+      keccak256("BloxlandEnergize(address player,uint256 amount)"),
       _player,
       _amount
     )));
