@@ -24,7 +24,7 @@ const ConnectPage = () => {
   const { switchChain } = useSwitchChain()
   const { connect } = useConnect()
   const navigate = useNavigate()
-  const { setAuthentication, isAuthenticated, isOnCorrectNetwork } = useAuthStore()
+  const { setAuthentication, isAuthenticated, isOnCorrectNetwork, refreshAuth, hasSigned, setHasSigned } = useAuthStore()
 
   // Consolidated auth state
   const [authState, setAuthState] = useState<AuthState>({
@@ -55,11 +55,42 @@ const ConnectPage = () => {
 
   // Check if already authenticated on page load
   useEffect(() => {
+    // First, refresh auth state to clear any expired sessions
+    refreshAuth();
+
+    // Get the current auth state from store after refresh
+    const authStore = useAuthStore.getState()
+
+    log('Checking persisted auth state', {
+      isAuthenticated,
+      isConnected,
+      isOnCorrectNetwork,
+      hasSigned,
+      hasStoredAuth: authStore.isAuthenticated,
+      hasAddress: !!authStore.address,
+      hasSignature: !!authStore.signature,
+      hasUsername: !!authStore.username
+    })
+
+    // If fully authenticated and connected, redirect to game
     if (isAuthenticated && isConnected && isOnCorrectNetwork) {
-      log('Already authenticated, redirecting to game')
+      log('Already authenticated and connected, redirecting to game')
       navigate('/game')
+      return
     }
-  }, [isAuthenticated, isConnected, isOnCorrectNetwork, navigate, log])
+
+    // If we have persisted valid auth, wait for wallet connection
+    if (authStore.isAuthenticated && !isConnected) {
+      log('Have valid persisted auth but wallet not connected, waiting for connection')
+      setAuthState(prev => ({ ...prev, step: 'connect', error: '' }))
+      return
+    }
+
+    // If connected but not authenticated, start fresh auth flow
+    if (isConnected && !isAuthenticated) {
+      log('Wallet connected but not authenticated, starting fresh auth flow')
+    }
+  }, [isAuthenticated, isConnected, isOnCorrectNetwork, hasSigned, navigate, log, refreshAuth])
 
   // Auto-switch to Sepolia if connected but on wrong network
   useEffect(() => {
@@ -92,109 +123,131 @@ const ConnectPage = () => {
     }
 
     if (authState.step === 'connect') {
-      log('Connected to correct network, moving to sign step')
+      // Check if wallet has been signed before and we have the same address
+      const storedAddress = useAuthStore.getState().address
+      if (hasSigned && address && storedAddress === address) {
+        log('Wallet already signed before with same address, skipping to verification')
+        setAuthState(prev => ({ ...prev, step: 'verify', error: '' }))
+        return
+      } else if (hasSigned && address && storedAddress !== address) {
+        log('Wallet signed before but different address, requiring new signature')
+        setHasSigned(false) // Reset hasSigned for new address
+      }
+
+      log('Moving to sign step')
       setAuthState(prev => ({ ...prev, step: 'sign', error: '' }))
       return
     }
 
-    if (signature && address && authState.step === 'sign') {
-      log('Signature received, starting verification')
-      verifyUser()
+    // Handle verification step - either from signing or from skipped signing (hasSigned=true)
+    if ((signature && address && authState.step === 'sign') ||
+      (hasSigned && address && authState.step === 'verify')) {
+      log(signature ? 'Signature received, starting verification' : 'Skipped signing (already signed), starting verification')
+      // Call verification inline
+      const doVerify = async () => {
+        if (!address) {
+          log('Missing address for verification')
+          return
+        }
+
+        // If we don't have a signature but hasSigned is true, we can proceed with stored auth
+        if (!signature && !hasSigned) {
+          log('Missing signature and wallet not signed before')
+          return
+        }
+
+        log('Starting user verification for address:', address)
+
+        setAuthState(prev => ({
+          ...prev,
+          step: 'verify',
+          isLoading: true,
+          error: ''
+        }))
+
+        try {
+          const response = await apiClient.getUserByAddress(address)
+          log('API Response received:', response)
+
+          const userData = response.data
+
+          if (userData && userData.id) {
+            log('Existing user found:', userData)
+
+            const resolvedUsername = userData.username?.trim() || 'explorer'
+            const normalizedUsername = resolvedUsername.toLowerCase()
+            const resolvedEnsName = userData.subDomainName || `${normalizedUsername}.bloxland.eth`
+
+            setAuthState(prev => ({
+              ...prev,
+              step: 'complete',
+              isLoading: false,
+              existingUser: userData,
+              username: normalizedUsername,
+              error: ''
+            }))
+
+            // Set authentication in store
+            // Use current signature or stored signature if hasSigned is true
+            const authSignature = signature || useAuthStore.getState().signature || `signed-${address}-${Date.now()}`
+            setAuthentication({
+              address: userData.userAddress,
+              signature: authSignature,
+              username: normalizedUsername,
+              ensName: resolvedEnsName
+            })
+
+            log('Authentication set for existing user, showing overlay')
+            setShowOverlay(true)
+
+            setTimeout(() => {
+              log('Navigating to game')
+              navigate('/game')
+            }, 1500)
+
+          } else {
+            log('No existing user found, proceeding to username step')
+            setAuthState(prev => ({
+              ...prev,
+              step: 'username',
+              isLoading: false,
+              existingUser: null,
+              error: ''
+            }))
+          }
+
+        } catch (error) {
+          log('Error during user verification:', error)
+
+          const apiError = error as ApiError
+
+          if (apiError?.status === 404) {
+            log('User not found (404), proceeding to username step')
+            setAuthState(prev => ({
+              ...prev,
+              step: 'username',
+              isLoading: false,
+              existingUser: null,
+              error: ''
+            }))
+          } else {
+            log('API error during verification:', apiError)
+            setAuthState(prev => ({
+              ...prev,
+              step: 'username',
+              isLoading: false,
+              error: getErrorMessage(apiError) || 'Verification failed, proceeding to registration'
+            }))
+          }
+        }
+      }
+
+      doVerify()
     }
-  }, [isConnected, chainId, signature, address, authState.step, log])
+  }, [isConnected, chainId, signature, address, authState.step, hasSigned, log, setAuthentication, setHasSigned, navigate])
 
   // Create authentication message
   const message = `Welcome to BLOXLAND!\n\nPlease sign this message to authenticate and start your adventure.\n\nTimestamp: ${Date.now()}\nAddress: ${address}\nChain: Sepolia Testnet`
-
-  const verifyUser = useCallback(async () => {
-    if (!address || !signature) {
-      log('Missing address or signature for verification')
-      return
-    }
-
-    log('Starting user verification for address:', address)
-
-    setAuthState(prev => ({
-      ...prev,
-      step: 'verify',
-      isLoading: true,
-      error: ''
-    }))
-
-    try {
-      const response = await apiClient.getUserByAddress(address)
-      log('API Response received:', response)
-
-      const userData = response.data
-
-      if (userData && userData.id) {
-        log('Existing user found:', userData)
-
-        const resolvedUsername = userData.username?.trim() || 'explorer'
-        const normalizedUsername = resolvedUsername.toLowerCase()
-        const resolvedEnsName = userData.subDomainName || `${normalizedUsername}.bloxland.eth`
-
-        setAuthState(prev => ({
-          ...prev,
-          step: 'complete',
-          isLoading: false,
-          existingUser: userData,
-          username: normalizedUsername,
-          error: ''
-        }))
-
-        // Set authentication in store
-        setAuthentication({
-          address: userData.userAddress,
-          signature,
-          username: normalizedUsername,
-          ensName: resolvedEnsName
-        })
-
-        log('Authentication set for existing user, showing overlay')
-        setShowOverlay(true)
-
-        setTimeout(() => {
-          log('Navigating to game')
-          navigate('/game')
-        }, 1500)
-
-      } else {
-        log('No existing user found, proceeding to username step')
-        setAuthState(prev => ({
-          ...prev,
-          step: 'username',
-          isLoading: false,
-          existingUser: null,
-          error: ''
-        }))
-      }
-
-    } catch (error) {
-      log('Error during user verification:', error)
-
-      const apiError = error as ApiError
-
-      if (apiError?.status === 404) {
-        log('User not found (404), proceeding to username step')
-        setAuthState(prev => ({
-          ...prev,
-          step: 'username',
-          isLoading: false,
-          existingUser: null,
-          error: ''
-        }))
-      } else {
-        log('API error during verification:', apiError)
-        setAuthState(prev => ({
-          ...prev,
-          step: 'username',
-          isLoading: false,
-          error: getErrorMessage(apiError) || 'Verification failed, proceeding to registration'
-        }))
-      }
-    }
-  }, [address, signature, setAuthentication, navigate, log])
 
   const handleConnect = async () => {
     setIsConnecting(true)
@@ -259,8 +312,15 @@ const ConnectPage = () => {
       return
     }
 
-    if (!address || !signature) {
-      setAuthState(prev => ({ ...prev, error: 'Authentication data missing. Please try again.' }))
+    if (!address) {
+      setAuthState(prev => ({ ...prev, error: 'Address missing. Please try again.' }))
+      return
+    }
+
+    // Get signature from current state or stored state if hasSigned
+    const authSignature = signature || useAuthStore.getState().signature || `signed-${address}-${Date.now()}`
+    if (!authSignature) {
+      setAuthState(prev => ({ ...prev, error: 'Authentication signature missing. Please try again.' }))
       return
     }
 
@@ -281,7 +341,7 @@ const ConnectPage = () => {
       // Store authentication in Zustand store
       setAuthentication({
         address: address!,
-        signature: signature!,
+        signature: authSignature,
         username: sanitizedUsername,
         ensName: `${sanitizedUsername}.bloxland.eth`
       })

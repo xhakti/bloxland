@@ -36,35 +36,82 @@ const PageLoader = () => (
 
 // Protected Route Component (only for Game page)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isConnected, isOnCorrectNetwork, isLoading, isInitialized } = useAuthStore()
+  const { isAuthenticated, isConnected, isOnCorrectNetwork, isLoading, isInitialized, address, timestamp, hasSigned } = useAuthStore()
 
-  // Show loading while initializing
+  // Debug route protection decisions
+  React.useEffect(() => {
+    console.log('[ProtectedRoute] Auth state check:', {
+      isAuthenticated,
+      isConnected,
+      isOnCorrectNetwork,
+      isLoading,
+      isInitialized,
+      hasAddress: !!address,
+      hasSigned,
+      sessionAge: timestamp ? (Date.now() - timestamp) / (1000 * 60 * 60 * 24) : null
+    });
+  }, [isAuthenticated, isConnected, isOnCorrectNetwork, isLoading, isInitialized, address, timestamp, hasSigned]);
+
+  // Show loading while initializing or loading persistence
   if (!isInitialized || isLoading) {
+    console.log('[ProtectedRoute] Showing loader - not initialized or loading');
     return <PageLoader />
   }
 
-  // Redirect if not properly authenticated
-  if (!isConnected || !isOnCorrectNetwork || !isAuthenticated) {
+  // Check if we have a valid auth session
+  const hasValidAuth = isAuthenticated && address && timestamp;
+  const isSessionExpired = timestamp ? (Date.now() - timestamp) > (7 * 24 * 60 * 60 * 1000) : false;
+
+  // Redirect if not properly authenticated or session expired
+  if (!hasValidAuth || isSessionExpired || !isConnected || !isOnCorrectNetwork) {
+    console.log('[ProtectedRoute] Redirecting to connect - invalid auth:', {
+      hasValidAuth,
+      isSessionExpired,
+      isConnected,
+      isOnCorrectNetwork
+    });
     return <Navigate to="/connect" replace />
   }
 
+  console.log('[ProtectedRoute] Access granted - rendering protected content');
   return <>{children}</>
 }
 
 // Auth Route Component (redirect if already authenticated)
 const AuthRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isConnected, isOnCorrectNetwork, isLoading, isInitialized } = useAuthStore()
+  const { isAuthenticated, isConnected, isOnCorrectNetwork, isLoading, isInitialized, address, timestamp, hasSigned } = useAuthStore()
 
-  // Show loading while initializing
+  // Debug auth route decisions
+  React.useEffect(() => {
+    console.log('[AuthRoute] Auth state check:', {
+      isAuthenticated,
+      isConnected,
+      isOnCorrectNetwork,
+      isLoading,
+      isInitialized,
+      hasAddress: !!address,
+      hasSigned,
+      sessionAge: timestamp ? (Date.now() - timestamp) / (1000 * 60 * 60 * 24) : null
+    });
+  }, [isAuthenticated, isConnected, isOnCorrectNetwork, isLoading, isInitialized, address, timestamp, hasSigned]);
+
+  // Show loading while initializing or loading persistence
   if (!isInitialized || isLoading) {
+    console.log('[AuthRoute] Showing loader - not initialized or loading');
     return <PageLoader />
   }
 
-  // Redirect if already authenticated
-  if (isConnected && isOnCorrectNetwork && isAuthenticated) {
+  // Check if we have a valid complete auth session
+  const hasValidAuth = isAuthenticated && address && timestamp && isConnected && isOnCorrectNetwork;
+  const isSessionExpired = timestamp ? (Date.now() - timestamp) > (7 * 24 * 60 * 60 * 1000) : false;
+
+  // Redirect if already fully authenticated and session is valid
+  if (hasValidAuth && !isSessionExpired) {
+    console.log('[AuthRoute] Redirecting to game - already authenticated');
     return <Navigate to="/game" replace />
   }
 
+  console.log('[AuthRoute] Showing auth page - not fully authenticated');
   return <>{children}</>
 }
 
