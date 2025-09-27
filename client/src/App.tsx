@@ -14,6 +14,8 @@ const GameIntegrationsPage = React.lazy(() => import('./pages/GameIntegrationsPa
 const CreateCheckpointPage = React.lazy(() => import('./pages/CreateCheckpointPage'));
 const SponsorDashboard = React.lazy(() => import('./pages/SponsorDashboard'));
 const CheckpointDetailPage = React.lazy(() => import('./pages/CheckpointDetailPage'));
+const LeaderboardPage = React.lazy(() => import('./pages/LeaderboardPage'));
+const MiniGamesPage = React.lazy(() => import('./pages/MiniGamesPage'));
 
 import './index.css';
 
@@ -72,6 +74,8 @@ const App: React.FC = () => {
                 <Routes>
                   <Route path="/" element={<HomePage />} />
                   <Route path="/connect" element={<ConnectPage />} />
+                  <Route path="/leaderboard" element={<LeaderboardPage />} />
+                  <Route path="/mini-games" element={<MiniGamesPage />} />
                   <Route
                     path="/game"
                     element={
