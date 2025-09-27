@@ -1,6 +1,11 @@
 import { faker } from "@faker-js/faker";
 import { db } from "../db";
-import { usersTable, socialQuestsTable, questSubmissionsTable, rewardsTable } from "../db/schema";
+import {
+  usersTable,
+  socialQuestsTable,
+  questSubmissionsTable,
+  rewardsTable,
+} from "../db/schema";
 import { eq } from "drizzle-orm";
 
 // helper to clean postgres-invalid chars
@@ -21,6 +26,7 @@ async function seedUsers() {
 
     return {
       userAddress: faker.finance.ethereumAddress(),
+      username: cleanString(faker.internet.username()),
       level: faker.number.int({ min: 1, max: 50 }),
       distanceTravelled: faker.number
         .float({ min: 0, max: 10000, fractionDigits: 2 })
@@ -30,7 +36,9 @@ async function seedUsers() {
       purchasedAvatarIds,
       currentLocation: cleanString(faker.location.city()),
       subDomainName: cleanString(faker.internet.domainWord()),
-      userType: faker.helpers.arrayElement(["User", "Partner"]) as "User" | "Partner",
+      userType: faker.helpers.arrayElement(["User", "Partner"]) as
+        | "User"
+        | "Partner",
     };
   });
 
@@ -93,7 +101,9 @@ async function seedQuestSubmissionsAndRewards() {
           userAddress: user.userAddress,
           tokenAddress: quest.rewardToken,
           tokenSymbol: quest.rewardSymbol,
-          tokenAmount: faker.number.float({ min: 1, max: 10, fractionDigits: 2 }).toString(),
+          tokenAmount: faker.number
+            .float({ min: 1, max: 10, fractionDigits: 2 })
+            .toString(),
           eventType: "SOCIAL_QUEST" as const,
         });
       }

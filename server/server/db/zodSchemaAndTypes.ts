@@ -1,10 +1,4 @@
 import {
-  articleInsertSchema,
-  articleSelectSchema,
-  articleUpdateSchema,
-  ArticleInsertSchema,
-  ArticleSelectSchema,
-  ArticleUpdateSchema,
   userInsertSchema,
   userSelectSchema,
   userUpdateSchema,
@@ -32,10 +26,7 @@ import {
 } from "./schema";
 
 // Export schemas
-export { 
-  articleInsertSchema, 
-  articleSelectSchema, 
-  articleUpdateSchema,
+export {
   userInsertSchema,
   userSelectSchema,
   userUpdateSchema,
@@ -51,10 +42,7 @@ export {
 };
 
 // Export types
-export type { 
-  ArticleInsertSchema, 
-  ArticleSelectSchema, 
-  ArticleUpdateSchema,
+export type {
   UserInsertSchema,
   UserSelectSchema,
   UserUpdateSchema,
