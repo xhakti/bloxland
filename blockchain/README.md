@@ -41,3 +41,13 @@ has been developed as `BloxlandENS` contract.
 ```shell
 pnpm exec hardhat --network sepolia ignition deploy ignition/modules/BloxlandSubnameRegistrar.ts
 ```
+
+### Domain Registration
+
+1. Go to https://sepolia.app.ens.domains and register `bloxland.eth`,
+2. Wrap the domain in the "More" section from the manager app,
+2. Deploy the contract `BloxlandENS`,
+3. [Approve the deployed contract](https://docs.ens.domains/wrapper/creating-subname-registrar/#approve-your-contract)
+   in the [name wrapper contract](https://sepolia.etherscan.io/address/0x0635513f179D50A207757E05759CbD106d7dFcE8#writeContract),
+4. Lock the domain by removing `CANNOT_UNWRAP` in the "Permissions" section
+   from the manager app.
