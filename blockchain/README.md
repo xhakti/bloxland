@@ -49,9 +49,24 @@ EIP-712 signature standard.
 
 ### Deployment
 
-```shell
-pnpm exec hardhat --network base-sepolia ignition deploy ignition/modules/Bloxland.ts
-```
+1. First do the actual deployment:
+
+   ```shell
+   pnpm exec hardhat --network base-sepolia ignition deploy ignition/modules/Bloxland.ts
+   ```
+
+2. Then the verification of the contracts:
+
+   ```shell
+   pnpm exec hardhat --network base-sepolia verify etherscan $ENERGY_TOKEN_ADDRESS 0x06Cd761C51248207cebbB45c289D8689DE61F30e
+   pnpm exec hardhat --network base-sepolia verify etherscan $BLOXLAND_ADDRESS 0xA2aa501b19aff244D90cc15a4Cf739D2725B5729 0x41c9e39574f40ad34c79f1c99b66a45efb830d4c 0x06Cd761C51248207cebbB45c289D8689DE61F30e 0xe441172596FF19c6B617Ee13C2eC45B1AD2da40C
+   ```
+
+3. Grant the role `BLOXLAND_ROLE` on `$BLOXLAND_ADDRESS`:
+
+   ![Grant Bloxland Role](./docs/EnergyToken-grantRole.png)
+
+4. Send some ETH to `$BLOXLAND_ADDRESS`.
 
 ### Entropy Game Sequence
 
