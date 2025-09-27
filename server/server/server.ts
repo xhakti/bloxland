@@ -3,7 +3,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import routes from "./routes/service";
 import userRoutes from "./routes/user";
-import adminRoutes from "./routes/admin";
+// import adminRoutes from "./routes/admin";
+import partnerRoutes from "./routes/partner";
 dotenv.config();
 
 const app = express();
@@ -16,7 +17,8 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/", routes);
 app.use("/user", userRoutes);
-app.use("/admin", adminRoutes);
+// app.use("/admin", adminRoutes);
+app.use("/partner", partnerRoutes);
 
 // Basic route
 app.get("/", (req: Request, res: Response) => {
