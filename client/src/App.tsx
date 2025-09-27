@@ -73,7 +73,7 @@ const App: React.FC = () => {
       <QueryClientProvider client={queryClient}>
         <AuthWrapper>
           <Router>
-            <div className="App min-h-screen bg-slate-900">
+            <div className="App min-h-screen bg-black">
               <Suspense fallback={<PageLoader />}>
                 <Routes>
                   <Route path="/" element={<HomePage />} />

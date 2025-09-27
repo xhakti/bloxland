@@ -217,3 +217,4 @@ const HighLow = () => {
 };
 
 export default HighLow;
+

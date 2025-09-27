@@ -295,3 +295,4 @@ const MiniGamesPage = () => {
 };
 
 export default MiniGamesPage;
+

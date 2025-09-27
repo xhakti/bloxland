@@ -28,10 +28,10 @@ const RealRewards = () => {
     <div className="w-full py-20 px-4">
       {/* Header */}
       <div className="text-center mb-20">
-        <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-8">
+        <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-8 font-parkinsans">
           Real Rewards for Real Movement
         </h2>
-        <p className="text-white text-xl max-w-3xl mx-auto opacity-90">
+        <p className="text-white text-xl max-w-3xl mx-auto opacity-90 font-lexend">
           Turn your daily steps into valuable digital and physical rewards
         </p>
       </div>
@@ -41,7 +41,14 @@ const RealRewards = () => {
         {rewards.map((reward, index) => (
           <div 
             key={index}
-            className="bg-white/10 rounded-3xl p-8 lg:p-6 border border-white/20 group hover:bg-white/15 transition-all duration-300 text-center"
+            className="p-8 lg:p-6 border border-white/10 group rounded-sm text-center"
+            style={{
+              backgroundColor: "#000000",
+              opacity: 1,
+              backgroundImage: "linear-gradient(#131313 2px, transparent 2px), linear-gradient(90deg, #131313 2px, transparent 2px), linear-gradient(#131313 1px, transparent 1px), linear-gradient(90deg, #131313 1px, #000000 1px)",
+              backgroundSize: "50px 50px, 50px 50px, 10px 10px, 10px 10px",
+              backgroundPosition: "-2px -2px, -2px -2px, -1px -1px, -1px -1px"
+            }}
           >
             {/* Icon */}
             <div className="mb-6 flex justify-center">
@@ -52,10 +59,10 @@ const RealRewards = () => {
 
             {/* Content */}
             <div className="space-y-4">
-              <h3 className="text-xl sm:text-2xl font-bold text-white">
+              <h3 className="text-xl sm:text-2xl font-bold text-white font-parkinsans">
                 {reward.title}
               </h3>
-              <p className="text-white text-sm sm:text-base leading-relaxed opacity-80">
+              <p className="text-white text-sm sm:text-base leading-relaxed opacity-80 font-lexend">
                 {reward.description}
               </p>
             </div>
@@ -66,14 +73,14 @@ const RealRewards = () => {
       {/* Call to Action */}
       <div className="text-center mt-16">
         <div className="space-y-4">
-          <p className="text-white text-lg opacity-90 max-w-2xl mx-auto">
+          <p className="text-white text-lg opacity-90 max-w-2xl mx-auto font-lexend">
             Ready to start earning real rewards for your movement?
           </p>
           <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 justify-center">
-            <button className="px-8 py-4 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 active:scale-95 text-lg">
+            <button className="px-8 py-4 bg-white text-black font-semibold rounded-lg hover:bg-neutral-100 transition-all duration-300 transform hover:scale-105 active:scale-95 text-lg font-lexend">
               Start Earning
             </button>
-            <button className="px-8 py-4 border border-white text-white font-semibold rounded-lg hover:bg-white hover:text-black transition-all duration-300 text-lg">
+            <button className="px-8 py-4 border border-white text-white font-semibold rounded-lg hover:bg-white hover:text-black transition-all duration-300 text-lg font-lexend">
               View All Rewards
             </button>
           </div>
