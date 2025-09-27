@@ -12,7 +12,10 @@
   "dependencies": {
     "@react-three/drei": "^10.7.6",
     "@react-three/fiber": "^9.3.0",
+    "@reown/appkit": "^1.8.7",
+    "@reown/appkit-adapter-wagmi": "^1.8.7",
     "@tailwindcss/vite": "^4.1.13",
+    "@tanstack/react-query": "^5.90.2",
     "@types/three": "^0.180.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -24,7 +27,9 @@
     "react-router-dom": "^7.9.2",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.13",
-    "three": "^0.180.0"
+    "three": "^0.180.0",
+    "viem": "^2.37.8",
+    "wagmi": "^2.17.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",

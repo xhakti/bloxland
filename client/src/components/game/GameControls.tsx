@@ -1,5 +1,4 @@
 import React from 'react';
-import Button from '../ui/Button';
 
 const GameControls: React.FC = () => {
     const handleSettings = () => {

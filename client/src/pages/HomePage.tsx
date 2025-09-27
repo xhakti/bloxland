@@ -3,6 +3,7 @@ import RotatingGlobe from "../components/ui/RotatingGlobe";
 import Gameplay from "../components/ui/Gameplay";
 import HowItWorks from "../components/ui/HowItWorks";
 import RealRewards from "../components/ui/RealRewards";
+import { Link } from "react-router-dom";
 
 const HomePage = () => {
   return (
@@ -43,14 +44,11 @@ const HomePage = () => {
                    </p>
                  </div>
                 
-                 {/* Buttons - Mobile */}
-                 <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 mt-6 sm:mt-8 px-4 sm:px-0 sm:justify-center">
-                   <button className="px-6 sm:px-8 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 active:scale-95">
-                     Start Exploring
-                   </button>
-                   <button className="px-6 sm:px-8 py-3 border border-white text-white font-semibold rounded-lg hover:bg-white hover:text-black transition-all duration-300">
-                     View Rewards
-                   </button>
+                 {/* Button - Mobile */}
+                 <div className="flex justify-center mt-6 sm:mt-8 px-4 sm:px-0">
+                   <Link to="/connect" className="px-6 sm:px-8 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 active:scale-95">
+                     Enter Game
+                   </Link>
                  </div>
               </div>
               
@@ -72,13 +70,10 @@ const HomePage = () => {
                      Explore your city, complete challenges, and earn crypto rewards while building your unique avatar collection.
                    </p>
                  </div>
-                 <div className="flex space-x-4 mt-8">
-                   <button className="px-8 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105">
-                     Start Exploring
-                   </button>
-                   <button className="px-8 py-3 border border-white text-white font-semibold rounded-lg hover:bg-white hover:text-black transition-all duration-300">
-                     View Rewards
-                   </button>
+                 <div className="flex justify-start mt-8">
+                   <Link  to="/connect" className="px-8 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105">
+                     Enter Game
+                   </Link>
                  </div>
               </div>
               <div className="h-full">
