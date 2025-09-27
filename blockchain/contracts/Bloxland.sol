@@ -114,11 +114,13 @@ contract Bloxland is EIP712 {
     }
 
     if (theGame.random) {
+      uint32 gasLimit = 12500000;
+
       // Contract needs ETH to pay for random
-      uint256 fee = entropy.getFeeV2();
+      uint256 fee = entropy.getFeeV2(gasLimit);
 
       // Use the given random sequency number as play id
-      uint64 sequenceNumber = entropy.requestV2{value: fee}();
+      uint64 sequenceNumber = entropy.requestV2{value: fee}(gasLimit);
 
       plays[sequenceNumber] = thePlay;
 
@@ -172,21 +174,21 @@ contract Bloxland is EIP712 {
     address,
     bytes32 randomNumber
   ) internal {
-    Play memory thePlay = plays[sequenceNumber];
+    // Play memory thePlay = plays[sequenceNumber];
 
-    if (thePlay.player == address(0)) {
-      revert("Play not found");
-    }
+    // if (thePlay.player == address(0)) {
+    //   revert("Play not found");
+    // }
 
-    Game memory theGame = games[thePlay.gameId];
+    // Game memory theGame = games[thePlay.gameId];
 
-    if (bytes(theGame.name).length == 0) {
-      revert("Game not found");
-    }
+    // if (bytes(theGame.name).length == 0) {
+    //   revert("Game not found");
+    // }
 
-    if (!theGame.random) {
-      revert("Cannot process random number for not random game");
-    }
+    // if (!theGame.random) {
+    //   revert("Cannot process random number for not random game");
+    // }
 
     plays[sequenceNumber].randomNumber = randomNumber;
   }
