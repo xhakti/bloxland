@@ -10,6 +10,7 @@ import LoadingSpinner from './components/ui/LoadingSpinner';
 const HomePage = React.lazy(() => import('./pages/HomePage'));
 const GamePage = React.lazy(() => import('./pages/GamePage'));
 const ConnectPage = React.lazy(() => import('./pages/ConnectPage'));
+const CreateCheckpointPage = React.lazy(() => import('./pages/CreateCheckpointPage'));
 
 import './index.css';
 
@@ -147,6 +148,15 @@ const AppContent = () => {
               element={
                 <ProtectedRoute>
                   <GamePage />
+                </ProtectedRoute>
+              }
+            />
+            {/* CreateCheckpointPage is also protected */}
+            <Route
+              path="/create"
+              element={
+                <ProtectedRoute>
+                  <CreateCheckpointPage />
                 </ProtectedRoute>
               }
             />

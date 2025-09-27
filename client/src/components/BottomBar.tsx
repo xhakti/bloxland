@@ -7,6 +7,7 @@ import {
   Settings,
   LogOut,
   User,
+  MapPin,
 } from "lucide-react";
 
 interface BottomBarProps {
@@ -81,6 +82,17 @@ const BottomBar: React.FC<BottomBarProps> = ({
             >
               <Home className="w-5 h-5" />
               <span className="text-lg">Home</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setShowSidebar(false);
+                navigate("/create");
+              }}
+              className="w-full flex items-center space-x-3 px-4 py-3 text-white hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <MapPin className="w-5 h-5 text-yellow-400" />
+              <span className="text-lg">Create Checkpoint</span>
             </button>
 
             <button

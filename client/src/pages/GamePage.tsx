@@ -57,6 +57,7 @@ const GamePage: React.FC = () => {
                 onUserLocationChange={handleUserLocationChange}
                 onMapReady={handleMapReady}
                 avatarUrl={avatarUrl}
+                showCheckpoints={true}
             />
             <BottomBar 
                 username={username || undefined}

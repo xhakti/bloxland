@@ -4,16 +4,26 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { AvatarLayer } from '../player/AvatarLayer';
 import LoadingSpinner from '../ui/LoadingSpinner';
 
+interface Checkpoint {
+    id: string;
+    latitude: number;
+    longitude: number;
+    name: string;
+    createdAt: string;
+}
+
 interface MapContainerProps {
     onUserLocationChange?: (location: [number, number] | null) => void;
     onMapReady?: (map: any) => void;
     avatarUrl?: string;
+    showCheckpoints?: boolean;
 }
 
 const MapContainer: React.FC<MapContainerProps> = ({
     onUserLocationChange,
     onMapReady,
-    avatarUrl = 'https://models.readyplayer.me/68c92d1a7a525019305da2eb.glb'
+    avatarUrl = 'https://models.readyplayer.me/68c92d1a7a525019305da2eb.glb',
+    showCheckpoints = false
 }) => {
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -25,6 +35,8 @@ const MapContainer: React.FC<MapContainerProps> = ({
     const [isFollowingUser, setIsFollowingUser] = useState(false);
     const [mapStyle, setMapStyle] = useState('mapbox://styles/mapbox/standard');
     const isMapInitialized = useRef(false);
+    const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
+    const checkpointMarkersRef = useRef<mapboxgl.Marker[]>([]);
 
     // Map style options
     const mapStyles = [
@@ -35,6 +47,65 @@ const MapContainer: React.FC<MapContainerProps> = ({
         { name: 'Light', value: 'mapbox://styles/mapbox/light-v11' },
         { name: 'Dark', value: 'mapbox://styles/mapbox/dark-v11' }
     ];
+
+    // Load checkpoints from localStorage
+    const loadCheckpoints = useCallback(() => {
+        if (!showCheckpoints) return;
+        
+        try {
+            const savedCheckpoints = localStorage.getItem('checkpoints');
+            if (savedCheckpoints) {
+                const parsedCheckpoints: Checkpoint[] = JSON.parse(savedCheckpoints);
+                setCheckpoints(parsedCheckpoints);
+            }
+        } catch (error) {
+            console.error('Error loading checkpoints:', error);
+        }
+    }, [showCheckpoints]);
+
+    // Create checkpoint marker
+    const createCheckpointMarker = useCallback((checkpoint: Checkpoint) => {
+        if (!mapRef.current) return null;
+
+        // Create pulsing yellow marker element
+        const el = document.createElement('div');
+        el.className = 'checkpoint-marker';
+        el.innerHTML = `
+            <div class="relative">
+                <div class="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center animate-pulse">
+                    <div class="w-3 h-3 bg-yellow-600 rounded-full"></div>
+                </div>
+                <div class="absolute inset-0 bg-yellow-400 rounded-full animate-ping opacity-75"></div>
+                <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded whitespace-nowrap pointer-events-none">
+                    ${checkpoint.name}
+                </div>
+            </div>
+        `;
+
+        // Create and return marker
+        const marker = new mapboxgl.Marker(el)
+            .setLngLat([checkpoint.longitude, checkpoint.latitude])
+            .addTo(mapRef.current);
+
+        return marker;
+    }, []);
+
+    // Add all checkpoint markers to map
+    const addCheckpointMarkers = useCallback(() => {
+        if (!mapRef.current || !showCheckpoints) return;
+
+        // Remove existing markers
+        checkpointMarkersRef.current.forEach(marker => marker.remove());
+        checkpointMarkersRef.current = [];
+
+        // Add new markers
+        checkpoints.forEach(checkpoint => {
+            const marker = createCheckpointMarker(checkpoint);
+            if (marker) {
+                checkpointMarkersRef.current.push(marker);
+            }
+        });
+    }, [checkpoints, createCheckpointMarker, showCheckpoints]);
 
 
     // Change map style
@@ -113,6 +184,32 @@ const MapContainer: React.FC<MapContainerProps> = ({
             onMapReady?.(map);
         }
     }, [avatarUrl, onMapReady]);
+
+    // Load checkpoints when component mounts or showCheckpoints changes
+    useEffect(() => {
+        loadCheckpoints();
+    }, [loadCheckpoints]);
+
+    // Add checkpoint markers when checkpoints change or map is ready
+    useEffect(() => {
+        if (mapRef.current && !isLoading) {
+            addCheckpointMarkers();
+        }
+    }, [checkpoints, isLoading, addCheckpointMarkers]);
+
+    // Listen for localStorage changes to update checkpoints in real-time
+    useEffect(() => {
+        if (!showCheckpoints) return;
+
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'checkpoints') {
+                loadCheckpoints();
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, [loadCheckpoints, showCheckpoints]);
 
     useEffect(() => {
         if (!mapContainerRef.current || isMapInitialized.current) return;
@@ -251,6 +348,10 @@ const MapContainer: React.FC<MapContainerProps> = ({
                     console.warn('Error during cleanup:', error);
                 }
             }
+            // Clean up checkpoint markers
+            checkpointMarkersRef.current.forEach(marker => marker.remove());
+            checkpointMarkersRef.current = [];
+
             if (mapRef.current) {
                 mapRef.current.remove();
             }
@@ -299,6 +400,24 @@ const MapContainer: React.FC<MapContainerProps> = ({
                     <p className="text-white mt-4 text-sm font-medium">{loadingStatus}</p>
                 </div>
             )}
+
+            {/* Custom styles for checkpoint markers */}
+            <style>{`
+                .checkpoint-marker {
+                    cursor: pointer;
+                }
+                
+                @keyframes ping {
+                    75%, 100% {
+                        transform: scale(2);
+                        opacity: 0;
+                    }
+                }
+                
+                .animate-ping {
+                    animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+                }
+            `}</style>
         </div>
     );
 };
