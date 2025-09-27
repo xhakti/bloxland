@@ -1,0 +1,39 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_28-d413655ecc6a4f75d79b22ee65ca613419836778",
+  "solcVersion": "0.8.28",
+  "solcLongVersion": "0.8.28+commit.7893614a",
+  "userSourceNameMap": {
+    "contracts/BloxlandENS.sol": "project/contracts/BloxlandENS.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "cancun",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/BloxlandENS.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.28;\n\n/// @title Bloxland Subname Registrar\n/// @notice Allows users to register subdomains under a parent ENS name (bloxland.eth) in a trustless, wrapped ENS setup.\n\ninterface IResolver {\n    function setContenthash(bytes32 node, bytes calldata hash) external;\n}\n\ninterface INameWrapper {\n    function setSubnodeOwner(\n        bytes32 parentNode,\n        string calldata label,\n        address owner,\n        uint32 fuses,\n        uint64 expiry\n    ) external;\n\n    function setSubnodeRecord(\n        bytes32 parentNode,\n        string calldata label,\n        address owner,\n        address resolver,\n        uint64 ttl,\n        uint32 fuses,\n        uint64 expiry\n    ) external;\n}\n\ncontract BloxlandSubnameRegistrar {\n    INameWrapper public nameWrapper;\n    IResolver public resolver;\n    address public owner;\n    bytes32 public parentNode; // namehash of bloxland.eth\n    uint32 public defaultFuses;\n    uint64 public defaultExpiry;\n\n    /// @notice Emitted when a subname is successfully registered\n    event SubnameRegistered(\n        address indexed user,\n        string label,\n        bytes32 indexed node,\n        uint64 expiry\n    );\n\n    modifier onlyOwner() {\n        require(msg.sender == owner, \"Only owner can call\");\n        _;\n    }\n\n    /// @param _nameWrapper Address of the ENS NameWrapper contract\n    /// @param _resolver Address of the resolver to set contenthash\n    /// @param _parentNode Namehash of the parent ENS name (e.g., bloxland.eth)\n    /// @param _defaultFuses Default fuses to burn on registration\n    /// @param _defaultExpiry Default expiry timestamp for subdomains\n    constructor(\n        address _nameWrapper,\n        address _resolver,\n        bytes32 _parentNode,\n        uint32 _defaultFuses,\n        uint64 _defaultExpiry\n    ) {\n        nameWrapper = INameWrapper(_nameWrapper);\n        resolver = IResolver(_resolver);\n        owner = msg.sender;\n        parentNode = _parentNode;\n        defaultFuses = _defaultFuses;\n        defaultExpiry = _defaultExpiry;\n    }\n\n    /// @notice Register a subdomain under the parent ENS name\n    /// @param label The subdomain label (e.g., \"game1\")\n    /// @param contentHash IPFS/Arweave contenthash for this subdomain\n    function registerSubname(string calldata label, bytes calldata contentHash) external {\n        // Step 1: Temporarily own the subname for resolver setup\n        nameWrapper.setSubnodeOwner(parentNode, label, address(this), defaultFuses, defaultExpiry);\n\n        bytes32 node = namehash(string(abi.encodePacked(label, \".blockxland.eth\")));\n\n        // Step 2: Set resolver contenthash\n        resolver.setContenthash(node, contentHash);\n\n        // Step 3: Transfer ownership to the caller with final fuses and expiry\n        nameWrapper.setSubnodeRecord(\n            parentNode,\n            label,\n            msg.sender,\n            address(resolver),\n            0, // TTL\n            defaultFuses,\n            defaultExpiry\n        );\n\n        emit SubnameRegistered(msg.sender, label, node, defaultExpiry);\n    }\n\n    /// @notice Compute ENS namehash from a full name\n    function namehash(string memory _name) public pure returns (bytes32 node) {\n        node = 0x0;\n        string[] memory labels = split(_name, '.');\n        for (uint i = labels.length; i > 0; i--) {\n            node = keccak256(abi.encodePacked(node, keccak256(bytes(labels[i - 1]))));\n        }\n    }\n\n    /// @notice Split a string by a separator\n    function split(string memory _base, string memory _sep) internal pure returns (string[] memory parts) {\n        bytes memory baseBytes = bytes(_base);\n        uint count = 1;\n        for (uint i = 0; i < baseBytes.length; i++) {\n            if (baseBytes[i] == bytes(_sep)[0]) count++;\n        }\n\n        parts = new string[](count);\n        uint partIndex = 0;\n        bytes memory buffer;\n\n        for (uint i = 0; i < baseBytes.length; i++) {\n            if (baseBytes[i] != bytes(_sep)[0]) {\n                buffer = abi.encodePacked(buffer, baseBytes[i]);\n            } else {\n                parts[partIndex++] = string(buffer);\n                buffer = \"\";\n            }\n        }\n\n        parts[partIndex] = string(buffer);\n    }\n\n    /// @notice Update default fuses and expiry (admin only)\n    function updateDefaults(uint32 _fuses, uint64 _expiry) external onlyOwner {\n        defaultFuses = _fuses;\n        defaultExpiry = _expiry;\n    }\n\n    /// @notice Transfer contract ownership\n    function transferOwnership(address newOwner) external onlyOwner {\n        require(newOwner != address(0), \"Invalid owner\");\n        owner = newOwner;\n    }\n}\n"
+      }
+    }
+  }
+}

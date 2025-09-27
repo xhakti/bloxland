@@ -28,3 +28,17 @@ Copy `.env.template` to `.env` and replace the private key and the backend signe
 ```shell
 pnpm exec hardhat --network base-sepolia ignition deploy ignition/modules/Bloxland.ts
 ```
+
+## Testing
+
+npx hardhat run scripts/deployBloxlandENS.ts --network sepolia
+
+
+##
+
+npx hardhat run scripts/deployBloxlandENS.ts --network localhost
+
+
+
+# deploy ens contract 
+❯ pnpm exec hardhat --network sepolia ignition deploy ignition/modules/BloxlandSubnameRegistrar.ts
