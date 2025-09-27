@@ -44,9 +44,8 @@ const BottomBar: React.FC<BottomBarProps> = ({
             className="p-2 bg-white/10 hover:bg-white/20 transition-colors rounded-lg border border-white/20"
           >
             <ChevronRight
-              className={`w-6 h-6 text-white transition-transform duration-300 ${
-                showSidebar ? "rotate-180" : ""
-              }`}
+              className={`w-6 h-6 text-white transition-transform duration-300 ${showSidebar ? "rotate-180" : ""
+                }`}
             />
           </button>
         </div>
@@ -54,9 +53,8 @@ const BottomBar: React.FC<BottomBarProps> = ({
 
       {/* Sidebar */}
       <div
-        className={`fixed right-0 bottom-0 top-0 z-60 w-80 bg-black border-l border-white/20 transform transition-transform duration-300 ease-in-out ${
-          showSidebar ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed right-0 bottom-0 top-0 z-60 w-80 bg-black border-l border-white/20 transform transition-transform duration-300 ease-in-out ${showSidebar ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <div className="flex flex-col h-full">
           {/* Sidebar Header */}
@@ -72,11 +70,10 @@ const BottomBar: React.FC<BottomBarProps> = ({
                 <p className="text-gray-400 text-sm">{ensName || "No ENS"}</p>
                 {userType && (
                   <span
-                    className={`text-xs px-2 py-1 rounded-full ${
-                      userType === "sponsor"
+                    className={`text-xs px-2 py-1 rounded-full ${userType === "sponsor"
                         ? "bg-yellow-400/20 text-yellow-400"
                         : "bg-blue-400/20 text-blue-400"
-                    }`}
+                      }`}
                   >
                     {userType === "sponsor" ? "Sponsor" : "User"}
                   </span>
@@ -92,15 +89,17 @@ const BottomBar: React.FC<BottomBarProps> = ({
               <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">Lighting Presets</p>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: 'Day', value: 'day' },
-                  { label: 'Sunset', value: 'sunset' },
+                  { label: 'Auto', value: 'auto' },
+                  { label: 'Dawn', value: 'dawn' },
+                  { label: 'Noon', value: 'noon' },
+                  { label: 'Evening', value: 'evening' },
                   { label: 'Night', value: 'night' },
-                  { label: 'Cyber', value: 'cyber' },
                 ].map(p => (
                   <button
                     key={p.value}
                     onClick={() => {
                       window.dispatchEvent(new CustomEvent('lightPresetChange', { detail: { preset: p.value } }));
+                      setShowSidebar(false); // close after selection
                     }}
                     className="w-full px-3 py-2 text-xs font-medium rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors"
                   >

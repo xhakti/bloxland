@@ -76,6 +76,9 @@ const App: React.FC = () => {
                   <Route path="/connect" element={<ConnectPage />} />
                   <Route path="/leaderboard" element={<LeaderboardPage />} />
                   <Route path="/mini-games" element={<MiniGamesPage />} />
+                  <Route path="/game-integrations" element={
+                    <GameIntegrationsPage />
+                  } />
                   <Route
                     path="/game"
                     element={
@@ -92,11 +95,6 @@ const App: React.FC = () => {
                   <Route path="/sponsor-dashboard" element={
                     <ProtectedRoute>
                       <SponsorDashboard />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/game-integrations" element={
-                    <ProtectedRoute>
-                      <GameIntegrationsPage />
                     </ProtectedRoute>
                   } />
                   <Route path="/checkpoint/:id" element={

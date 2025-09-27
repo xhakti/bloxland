@@ -96,6 +96,86 @@ export class AvatarLayer implements mapboxgl.CustomLayerInterface {
         this.loadAvatar();
     }
 
+    private setupLighting() {
+        if (!this.scene) return;
+        const avatarH = this.options.avatarHeight || 25;
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        directionalLight.position.set(100, avatarH + 100, 100);
+        directionalLight.castShadow = true;
+        this.scene.add(directionalLight);
+        const backLight = new THREE.DirectionalLight(0x8899ff, 1.0);
+        backLight.position.set(-100, avatarH + 50, -200);
+        this.scene.add(backLight);
+        const fillLight = new THREE.DirectionalLight(0xffaa88, 0.8);
+        fillLight.position.set(-200, avatarH / 2, 50);
+        this.scene.add(fillLight);
+        const ambientLight = new THREE.AmbientLight(0x606060, 1.4);
+        this.scene.add(ambientLight);
+        const hemisphereLight = new THREE.HemisphereLight(0x87ceeb, 0x8b7355, 1.0);
+        this.scene.add(hemisphereLight);
+        const headLight = new THREE.PointLight(0xffffff, 1.5, 300);
+        headLight.position.set(0, avatarH * 0.8, 50);
+        this.scene.add(headLight);
+        const rimLight = new THREE.PointLight(0xaaccff, 1.0, 400);
+        rimLight.position.set(0, avatarH + 50, 100);
+        this.scene.add(rimLight);
+        this.lights = { directional: directionalLight, back: backLight, fill: fillLight, ambient: ambientLight, hemisphere: hemisphereLight, head: headLight, rim: rimLight };
+    }
+
+    private createRadarCircles() {
+        if (!this.scene || !this.map) return;
+        const makeCircle = (radiusMeters: number, color: number, initialOpacity: number) => {
+            const geometry = new THREE.CircleGeometry(1, 64);
+            const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: initialOpacity, depthWrite: false, depthTest: true, side: THREE.DoubleSide });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.rotation.x = -Math.PI / 2;
+            mesh.renderOrder = 2;
+            (mesh.userData as any).targetRadiusMeters = radiusMeters;
+            (mesh.userData as any).baseOpacity = initialOpacity;
+            return mesh;
+        };
+        this.radarInner = makeCircle(this.RADAR_INNER_RADIUS_M, 0x0066ff, 0.25);
+        this.radarOuter = makeCircle(this.RADAR_OUTER_RADIUS_M, 0x33aaff, 0.18);
+        this.scene.add(this.radarInner);
+        this.scene.add(this.radarOuter);
+    }
+
+    private async loadAvatar() {
+        if (!this.scene) return;
+        try {
+            const loader = new GLTFLoader();
+            const gltf = await new Promise<any>((resolve, reject) => {
+                loader.load(this.options.avatarUrl, resolve, undefined, reject);
+            });
+            this.avatar = gltf.scene;
+            if (this.avatar) {
+                const targetHeight = this.options.avatarHeight || 25;
+                const heightScale = targetHeight / 1.8;
+                this.avatar.scale.set(heightScale, heightScale, heightScale);
+                this.avatar.traverse(c => {
+                    if (c instanceof THREE.Mesh) {
+                        c.castShadow = true;
+                        c.receiveShadow = true;
+                        c.renderOrder = 1;
+                    }
+                });
+                // root bone capture
+                this.avatar.traverse(c => {
+                    if (c instanceof THREE.SkinnedMesh && c.skeleton?.bones.length) {
+                        if (!this.rootBone) this.rootBone = c.skeleton.bones[0];
+                    }
+                });
+                this.mixer = new THREE.AnimationMixer(this.avatar);
+                this.scene.add(this.avatar);
+                this.isAvatarLoaded = true;
+                await this.loadAnimations();
+            }
+        } catch (e) {
+            this.createFallbackAvatar();
+        }
+        this.map?.triggerRepaint();
+    }
+
     private createOcclusionPreventionSystem() {
         if (!this.scene) return;
 
@@ -127,174 +207,47 @@ export class AvatarLayer implements mapboxgl.CustomLayerInterface {
         this.scene.add(this.occlusionPreventionMesh);
     }
 
-    private updateOcclusionPrevention() {
-        if (!this.occlusionPreventionMesh || !this.avatar) return;
-        this.occlusionPreventionMesh.position.copy(this.avatar.position);
-        // Center vertically on the tall avatar
-        this.occlusionPreventionMesh.position.y = (this.options.avatarHeight || 25) / 2;
-    }
-
-    private setupLighting() {
-        if (!this.scene) return;
-
-        // Enhanced lighting setup for better visibility
-        const avatarH = this.options.avatarHeight || 25;
-
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
-        directionalLight.position.set(100, avatarH + 100, 100);
-        directionalLight.castShadow = true;
-        directionalLight.shadow.mapSize.width = 4096;
-        directionalLight.shadow.mapSize.height = 4096;
-        directionalLight.shadow.camera.near = 0.1;
-        directionalLight.shadow.camera.far = 2000;
-        directionalLight.shadow.camera.left = -200;
-        directionalLight.shadow.camera.right = 200;
-        directionalLight.shadow.camera.top = 200;
-        directionalLight.shadow.camera.bottom = -200;
-        this.scene.add(directionalLight);
-
-        // Multiple light sources for better avatar illumination
-        const backLight = new THREE.DirectionalLight(0x8899ff, 1.0);
-        backLight.position.set(-100, avatarH + 50, -200);
-        this.scene.add(backLight);
-
-        const fillLight = new THREE.DirectionalLight(0xffaa88, 0.8);
-        fillLight.position.set(-200, avatarH / 2, 50);
-        this.scene.add(fillLight);
-
-        const ambientLight = new THREE.AmbientLight(0x606060, 1.4);
-        this.scene.add(ambientLight);
-
-        const hemisphereLight = new THREE.HemisphereLight(0x87ceeb, 0x8b7355, 1.0);
-        this.scene.add(hemisphereLight);
-
-        // Point light at head level
-        const headLight = new THREE.PointLight(0xffffff, 1.5, 300);
-        headLight.position.set(0, avatarH * 0.8, 50);
-        this.scene.add(headLight);
-
-        const rimLight = new THREE.PointLight(0xaaccff, 1.0, 400);
-        rimLight.position.set(0, avatarH + 50, 100);
-        this.scene.add(rimLight);
-
-        console.log('Enhanced lighting setup complete');
-
-        // Store light references for presets
-        this.lights = {
-            directional: directionalLight,
-            back: backLight,
-            fill: fillLight,
-            ambient: ambientLight,
-            hemisphere: hemisphereLight,
-            head: headLight,
-            rim: rimLight,
-        };
-
-        // Apply initial preset
-        this.applyLightingPreset(this.lightingPreset);
-    }
-
-    private createRadarCircles() {
-        if (!this.scene || !this.map) return;
-
-        // Helper to build a ring with fading alpha
-        const makeCircle = (radiusMeters: number, color: number, initialOpacity: number) => {
-            // Use a circle geometry in XZ plane (we rotate later)
-            const segments = 64;
-            const geometry = new THREE.CircleGeometry(1, segments); // unit circle, scale later
-            const material = new THREE.MeshBasicMaterial({
-                color,
-                transparent: true,
-                opacity: initialOpacity,
-                depthWrite: false,
-                depthTest: true,
-                side: THREE.DoubleSide,
-            });
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.rotation.x = -Math.PI / 2; // lay flat
-            mesh.renderOrder = 2; // above ground, below avatar
-            // Store parameters for animation
-            (mesh.userData as any).targetRadiusMeters = radiusMeters;
-            (mesh.userData as any).baseOpacity = initialOpacity;
-            return mesh;
-        };
-
-        this.radarInner = makeCircle(this.RADAR_INNER_RADIUS_M, 0x0066ff, 0.25);
-        this.radarOuter = makeCircle(this.RADAR_OUTER_RADIUS_M, 0x33aaff, 0.18);
-
-        this.scene.add(this.radarInner);
-        this.scene.add(this.radarOuter);
-    }
-
     private applyLightingPreset(preset: string) {
-        const dir = this.lights.directional as THREE.DirectionalLight | undefined;
-        const back = this.lights.back as THREE.DirectionalLight | undefined;
-        const fill = this.lights.fill as THREE.DirectionalLight | undefined;
-        const ambient = this.lights.ambient as THREE.AmbientLight | undefined;
-        const hemi = this.lights.hemisphere as THREE.HemisphereLight | undefined;
+        // NEW: Avatar lighting no longer changes dramatically with presets.
+        // Keep neutral balanced lights from setupLighting; only (optionally) nudge
+        // head/rim intensity for darker themes so avatar stays readable.
         const head = this.lights.head as THREE.PointLight | undefined;
         const rim = this.lights.rim as THREE.PointLight | undefined;
-
-        switch (preset) {
-            case 'sunset':
-                if (dir) { dir.color.set(0xffc387); dir.intensity = 1.2; }
-                if (back) { back.color.set(0x8844ff); back.intensity = 0.8; }
-                if (fill) { fill.color.set(0xff8855); fill.intensity = 0.6; }
-                if (ambient) { ambient.color.set(0x553322); ambient.intensity = 0.8; }
-                if (hemi) { hemi.color.set(0xffd5a1); hemi.groundColor.set(0x442211); hemi.intensity = 0.6; }
-                if (head) { head.color.set(0xffbb88); head.intensity = 1.0; }
-                if (rim) { rim.color.set(0xff9966); rim.intensity = 0.9; }
-                break;
-            case 'night':
-                if (dir) { dir.color.set(0x445577); dir.intensity = 0.4; }
-                if (back) { back.color.set(0x223355); back.intensity = 0.6; }
-                if (fill) { fill.color.set(0x335577); fill.intensity = 0.3; }
-                if (ambient) { ambient.color.set(0x111a26); ambient.intensity = 0.5; }
-                if (hemi) { hemi.color.set(0x224466); hemi.groundColor.set(0x050505); hemi.intensity = 0.4; }
-                if (head) { head.color.set(0x99ccff); head.intensity = 0.5; }
-                if (rim) { rim.color.set(0x3399ff); rim.intensity = 0.6; }
-                break;
-            case 'cyber':
-                if (dir) { dir.color.set(0x66ccff); dir.intensity = 1.1; }
-                if (back) { back.color.set(0xff33cc); back.intensity = 1.2; }
-                if (fill) { fill.color.set(0x33ffcc); fill.intensity = 0.9; }
-                if (ambient) { ambient.color.set(0x112233); ambient.intensity = 0.9; }
-                if (hemi) { hemi.color.set(0x33bbff); hemi.groundColor.set(0x220044); hemi.intensity = 0.8; }
-                if (head) { head.color.set(0x33ddff); head.intensity = 1.3; }
-                if (rim) { rim.color.set(0xff33aa); rim.intensity = 1.2; }
-                break;
-            case 'day':
-            default:
-                if (dir) { dir.color.set(0xffffff); dir.intensity = 1.5; }
-                if (back) { back.color.set(0x8899ff); back.intensity = 1.0; }
-                if (fill) { fill.color.set(0xffaa88); fill.intensity = 0.8; }
-                if (ambient) { ambient.color.set(0x606060); ambient.intensity = 1.4; }
-                if (hemi) { hemi.color.set(0x87ceeb); hemi.groundColor.set(0x8b7355); hemi.intensity = 1.0; }
-                if (head) { head.color.set(0xffffff); head.intensity = 1.5; }
-                if (rim) { rim.color.set(0xaaccff); rim.intensity = 1.0; }
-                break;
+        if (head && rim) {
+            if (preset === 'night') {
+                head.intensity = 1.8; // slightly brighter so face readable
+                rim.intensity = 1.3;
+            } else if (preset === 'cyber') {
+                head.intensity = 1.9;
+                rim.intensity = 1.4;
+            } else if (preset === 'sunset') {
+                head.intensity = 1.6;
+                rim.intensity = 1.1;
+            } else { // day / default
+                head.intensity = 1.5;
+                rim.intensity = 1.0;
+            }
         }
-
         this.lightingPreset = preset;
         this.map?.triggerRepaint();
     }
 
     public setLightingPreset(preset: string) {
         this.applyLightingPreset(preset);
-        console.log(`Lighting preset set to: ${preset}`);
+        console.log(`(Avatar) lighting preset flag updated (visual lights remain neutral): ${preset}`);
     }
 
-    public getLightingPreset() {
-        return this.lightingPreset;
-    }
-
-    // Walking controls exposed for external triggers
+    // Expose simple walking animation controls (kept from previous implementation)
     public startWalking() {
         if (this.animationStateMachine) {
             try {
-                (this.animationStateMachine as any).startWalking?.();
+                if ((this.animationStateMachine as any).setWalking) {
+                    (this.animationStateMachine as any).setWalking(true);
+                } else if ((this.animationStateMachine as any).play) {
+                    (this.animationStateMachine as any).play('walk');
+                }
             } catch (e) {
-                console.warn('Failed to start walking animation', e);
+                // ignore
             }
         }
     }
@@ -302,107 +255,18 @@ export class AvatarLayer implements mapboxgl.CustomLayerInterface {
     public stopWalking() {
         if (this.animationStateMachine) {
             try {
-                (this.animationStateMachine as any).stopWalking?.();
-            } catch (e) {
-                console.warn('Failed to stop walking animation', e);
-            }
-        }
-    }
-
-    private async loadAvatar() {
-        if (!this.scene) return;
-
-        try {
-            console.log('Loading Ready Player Me avatar:', this.options.avatarUrl);
-
-            const loader = new GLTFLoader();
-            const gltf = await new Promise<{
-                scene: THREE.Group;
-                animations: THREE.AnimationClip[];
-            }>((resolve, reject) => {
-                loader.load(
-                    this.options.avatarUrl,
-                    resolve,
-                    (progress) => {
-                        const percent = Math.round((progress.loaded / progress.total) * 100);
-                        console.log(`Avatar loading: ${percent}%`);
-                    },
-                    reject
-                );
-            });
-
-            this.avatar = gltf.scene;
-
-            if (this.avatar && this.scene) {
-                // Scale giant avatar to desired height
-                const targetHeight = this.options.avatarHeight || 25; // meters
-                const heightScale = targetHeight / 1.8; // assume original avatar ~1.8m
-                this.avatar.scale.set(heightScale, heightScale, heightScale);
-
-                // Process avatar mesh for better visibility and rendering
-                this.avatar.traverse((child) => {
-                    if (child instanceof THREE.Mesh) {
-                        child.castShadow = true;
-                        child.receiveShadow = true;
-                        child.renderOrder = 1; // Render after occlusion prevention
-
-                        if (child.material) {
-                            if (Array.isArray(child.material)) {
-                                child.material.forEach(mat => {
-                                    this.enhanceMaterial(mat);
-                                });
-                            } else {
-                                this.enhanceMaterial(child.material);
-                            }
-                        }
-                    }
-                });
-
-                // Setup animation mixer
-                let animationRoot = this.avatar;
-                this.avatar.traverse((child) => {
-                    if (child instanceof THREE.SkinnedMesh) {
-                        if (child.skeleton && child.skeleton.bones.length > 0) {
-                            // Capture the first bone as rootBone (commonly hips/root in RPM rigs)
-                            if (!this.rootBone) {
-                                this.rootBone = child.skeleton.bones[0];
-                            }
-                            const parentBone = child.skeleton.bones[0].parent; // attempt to use parent bone for animation root if present
-                            if (parentBone) {
-                                animationRoot = parentBone as THREE.Group;
-                            }
-                        }
-                    }
-                });
-
-                this.mixer = new THREE.AnimationMixer(animationRoot);
-
-                // Handle built-in animations
-                if (gltf.animations && gltf.animations.length > 0) {
-                    gltf.animations.forEach((clip, index) => {
-                        const action = this.mixer!.clipAction(clip);
-                        this.actions[clip.name || `builtin_${index}`] = action;
-                    });
-                    console.log("Found built-in animations:", Object.keys(this.actions));
+                if ((this.animationStateMachine as any).setWalking) {
+                    (this.animationStateMachine as any).setWalking(false);
+                } else if ((this.animationStateMachine as any).play) {
+                    (this.animationStateMachine as any).play('idle');
                 }
-
-                // Ensure avatar renders above buildings
-                this.avatar.renderOrder = 10;
-                // Ground it at y = 0 (it's tall enough to be visible)
-                this.avatar.position.y = 0;
-                this.scene.add(this.avatar);
-                this.isAvatarLoaded = true;
-                console.log(`Avatar loaded and added to scene. Target height: ${targetHeight}m`);
-
-                // Load animations after avatar is ready
-                await this.loadAnimations();
-                this.map?.triggerRepaint();
+            } catch (e) {
+                // ignore
             }
-        } catch (error) {
-            console.error("Error loading avatar:", error);
-            this.createFallbackAvatar();
         }
     }
+
+    // (Duplicate erroneous code block removed in refactor.)
 
     private enhanceMaterial(material: THREE.Material) {
         if (material instanceof THREE.MeshStandardMaterial ||
@@ -492,6 +356,12 @@ export class AvatarLayer implements mapboxgl.CustomLayerInterface {
         this.isAvatarLoaded = true;
         console.log('Enhanced fallback avatar created');
         this.map?.triggerRepaint();
+    }
+
+    private updateOcclusionPrevention() {
+        if (!this.occlusionPreventionMesh || !this.avatar) return;
+        this.occlusionPreventionMesh.position.copy(this.avatar.position);
+        this.occlusionPreventionMesh.position.y = (this.options.avatarHeight || 25) / 2;
     }
 
     render(_gl: WebGLRenderingContext, matrix: number[]) {

@@ -48,6 +48,8 @@ const MapContainer: React.FC<MapContainerProps> = ({
     const checkpointMarkersRef = useRef<mapboxgl.Marker[]>([]);
     const [selectedCheckpoint, setSelectedCheckpoint] = useState<Checkpoint | null>(null);
     const [showCheckpointModal, setShowCheckpointModal] = useState(false);
+    // Track when map style fully loaded so lighting presets can be applied
+    const [mapReady, setMapReady] = useState(false);
     // Cinematic & follow state
     const hasRunCinematicRef = useRef<boolean>(false);
     const isRunningCinematicRef = useRef<boolean>(false);
@@ -400,17 +402,107 @@ const MapContainer: React.FC<MapContainerProps> = ({
     }, [checkpoints, isLoading, addCheckpointMarkers]);
 
     // Listen for lighting preset change events dispatched from UI (e.g., sidebar)
+    // Uses Mapbox Standard style built-in light presets (dawn, day, dusk, night)
+    // We map user friendly names: noon -> day, evening -> dusk.
     useEffect(() => {
+        if (!mapRef.current || !mapReady) return;
+
+        const map = mapRef.current;
+        // Start with night as default (user requested) until user picks or auto selected
+        const currentPresetRef = { value: 'night' } as { value: string };
+
+        // Fallback manual implementation (kept from previous version) in case setConfigProperty fails
+        const fallbackApply = (name: string) => {
+            try {
+                if (!map.isStyleLoaded()) return;
+                const setLight = (opts: any) => { try { (map as any).setLight(opts); } catch (e) { /* ignore light error */ } };
+                const setFog = (opts: any) => { try { (map as any).setFog(opts); } catch (e) { /* ignore fog error */ } };
+                const ensureSky = () => { try { if (!map.getLayer('bloxland-sky')) { map.addLayer({ id: 'bloxland-sky', type: 'sky', paint: { 'sky-type': 'atmosphere', 'sky-atmosphere-sun-intensity': 12 } }); } } catch (e) { /* ignore sky error */ } };
+                ensureSky();
+                switch (name) {
+                    case 'dusk': // sunset equivalent
+                        setLight({ anchor: 'viewport', position: [1.2, 80, 20], color: '#ffb37a', intensity: 0.55 });
+                        setFog({ range: [0.5, 14], color: '#f7c9a4', 'horizon-blend': 0.32, 'high-color': '#ff9966', 'space-color': '#2a1020', 'star-intensity': 0 });
+                        break;
+                    case 'night':
+                        setLight({ anchor: 'viewport', position: [1.4, 130, -15], color: '#99ccff', intensity: 0.28 });
+                        setFog({ range: [0.5, 11], color: '#07101b', 'horizon-blend': 0.18, 'high-color': '#143354', 'space-color': '#000008', 'star-intensity': 0.65 });
+                        break;
+                    case 'day':
+                    case 'dawn':
+                    default:
+                        setLight({ anchor: 'viewport', position: [1.15, 210, 30], color: '#ffffff', intensity: 0.85 });
+                        setFog({ range: [0.5, 26], color: '#e3f6ff', 'horizon-blend': 0.22, 'high-color': '#8ac4ff', 'space-color': '#8ac4ff', 'star-intensity': 0 });
+                        break;
+                }
+                console.log('[Lighting][Fallback] Applied manual preset:', name);
+            } catch (err) {
+                console.warn('[Lighting] Fallback apply failed', err);
+            }
+        };
+
+        const applyBuiltIn = (preset: string, attempt = 0) => {
+            if (!map.isStyleLoaded()) {
+                if (attempt < 10) return setTimeout(() => applyBuiltIn(preset, attempt + 1), 150);
+                console.warn('[Lighting] Style never became ready for preset:', preset);
+                return;
+            }
+            // Map user friendly alias to Mapbox preset
+            const mapping: Record<string, string> = {
+                dawn: 'dawn',
+                day: 'day',
+                noon: 'day',
+                dusk: 'dusk',
+                evening: 'dusk',
+                night: 'night'
+            };
+            const target = mapping[preset] || 'day';
+            try {
+                // Standard style config property
+                (map as any).setConfigProperty?.('basemap', 'lightPreset', target);
+                console.log('[Lighting] Applied built-in preset:', preset, '->', target);
+            } catch (err) {
+                console.warn('[Lighting] Built-in preset apply failed, using fallback. Err:', err);
+                fallbackApply(target);
+            }
+        };
+
+        const chooseAutoPreset = () => {
+            if (currentPresetRef.value !== 'auto') return;
+            const hour = new Date().getHours();
+            let preset: string;
+            if (hour >= 21 || hour < 5) preset = 'night';
+            else if (hour >= 18 && hour < 21) preset = 'evening'; // dusk
+            else if (hour >= 6 && hour < 9) preset = 'dawn';
+            else preset = 'noon'; // maps to day
+            applyBuiltIn(preset);
+        };
+
+        // Apply default night immediately
+        applyBuiltIn('night');
+        // If user switches to auto later, auto will take over. We don't auto-switch on load to keep night default.
+        const autoInterval = window.setInterval(chooseAutoPreset, 5 * 60 * 1000);
+
         const handler = (e: Event) => {
             const custom = e as CustomEvent<{ preset: string }>;
             const preset = custom.detail?.preset;
-            if (preset && avatarLayerRef.current?.setLightingPreset) {
-                avatarLayerRef.current.setLightingPreset(preset);
-            }
+            if (!preset) return;
+            currentPresetRef.value = preset === 'auto' ? 'auto' : preset;
+            if (preset === 'auto') chooseAutoPreset(); else applyBuiltIn(preset);
         };
         window.addEventListener('lightPresetChange', handler as EventListener);
-        return () => window.removeEventListener('lightPresetChange', handler as EventListener);
-    }, []);
+
+        const styleListener = () => {
+            if (currentPresetRef.value === 'auto') chooseAutoPreset(); else applyBuiltIn(currentPresetRef.value);
+        };
+        map.on('styledata', styleListener);
+
+        return () => {
+            window.removeEventListener('lightPresetChange', handler as EventListener);
+            window.clearInterval(autoInterval);
+            map.off('styledata', styleListener);
+        };
+    }, [mapReady]);
 
     // Listen for localStorage changes
     useEffect(() => {
@@ -536,6 +628,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
             map.on('load', () => {
                 console.log('Map loaded, getting initial location...');
                 setLoadingStatus('Getting location...');
+                setMapReady(true); // enable lighting effect
 
                 if ('geolocation' in navigator) {
                     navigator.geolocation.getCurrentPosition(
