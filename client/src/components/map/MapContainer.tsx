@@ -3,6 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { AvatarLayer } from '../player/AvatarLayer';
 import LoadingSpinner from '../ui/LoadingSpinner';
+import CheckpointModal from '../ui/CheckpointModal';
 
 interface Checkpoint {
     id: string;
@@ -44,6 +45,8 @@ const MapContainer: React.FC<MapContainerProps> = ({
     const isMapInitialized = useRef(false);
     const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
     const checkpointMarkersRef = useRef<mapboxgl.Marker[]>([]);
+    const [selectedCheckpoint, setSelectedCheckpoint] = useState<Checkpoint | null>(null);
+    const [showCheckpointModal, setShowCheckpointModal] = useState(false);
 
     // Map style options
     const mapStyles = [
@@ -116,13 +119,8 @@ const MapContainer: React.FC<MapContainerProps> = ({
 
         // Add click handler for checkpoint interaction
         el.addEventListener('click', () => {
-            if (checkpoint.sponsorName) {
-                // For sponsor checkpoints, navigate to detail page
-                window.location.href = `/checkpoint/${checkpoint.id}`;
-            } else {
-                // For user checkpoints, show simple info
-                alert(`Checkpoint: ${checkpoint.name}\nClick to interact!`);
-            }
+            setSelectedCheckpoint(checkpoint);
+            setShowCheckpointModal(true);
         });
 
         // Create and return marker
@@ -150,6 +148,29 @@ const MapContainer: React.FC<MapContainerProps> = ({
         });
     }, [checkpoints, createCheckpointMarker, showCheckpoints]);
 
+    // Handle checkpoint modal close
+    const handleCloseCheckpointModal = () => {
+        setShowCheckpointModal(false);
+        setSelectedCheckpoint(null);
+    };
+
+    // Handle start task from modal
+    const handleStartTask = () => {
+        // TODO: Implement task start logic
+        console.log('Starting task for checkpoint:', selectedCheckpoint?.name);
+    };
+
+    // Handle view on map from modal (close modal and center on checkpoint)
+    const handleViewOnMap = () => {
+        if (selectedCheckpoint && mapRef.current) {
+            mapRef.current.flyTo({
+                center: [selectedCheckpoint.longitude, selectedCheckpoint.latitude],
+                zoom: 18,
+                duration: 1000
+            });
+            handleCloseCheckpointModal();
+        }
+    };
 
     // Change map style
     const changeMapStyle = (styleUrl: string) => {
@@ -461,6 +482,15 @@ const MapContainer: React.FC<MapContainerProps> = ({
                     animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
                 }
             `}</style>
+
+            {/* Checkpoint Detail Modal */}
+            <CheckpointModal
+                isOpen={showCheckpointModal}
+                checkpoint={selectedCheckpoint}
+                onClose={handleCloseCheckpointModal}
+                onStartTask={handleStartTask}
+                onViewOnMap={handleViewOnMap}
+            />
         </div>
     );
 };

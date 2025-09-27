@@ -51,6 +51,12 @@ const config: HardhatUserConfig = {
       gasPrice: 1000000000,
     },
   },
+  verify: {
+    etherscan: {
+      apiKey: process.env.ETHERSCAN_API_KEY,
+      enabled: process.env.ETHERSCAN_API_KEY ? undefined : false,
+    },
+  },
 };
 
 export default config;

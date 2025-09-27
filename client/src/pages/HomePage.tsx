@@ -42,7 +42,7 @@ const HomePage = () => {
 
   return (
     <div
-      className="min-h-[100dvh] w-full text-white overflow-x-hidden"
+      className="min-h-[100dvh] w-full text-white overflow-x-hidden "
       style={{
         backgroundColor: "#000000",
         opacity: 1,
@@ -63,7 +63,7 @@ const HomePage = () => {
 
             {/* Auth Status Indicator */}
             {isConnected && (
-              <div className="hidden sm:flex items-center space-x-2 text-xs">
+              <div className="hidden sm:flex items-center space-x-2 text-xs overflow-hidden">
                 {isAuthenticated && isOnCorrectNetwork ? (
                   <div className="flex items-center space-x-2">
                     <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
