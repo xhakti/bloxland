@@ -6,17 +6,15 @@ export const registerUserService = async (data: {
   address: string;
   username: string;
   email?: string;
-  referrer?: string;
 }): Promise<{
   data: {
     user: UserSelectSchema;
-    referrerRewardGranted: boolean;
   } | null;
   message: string;
   error: any;
 }> => {
   try {
-    const { address, username, email, referrer } = data;
+    const { address, username, email } = data;
 
     // Check if user already exists
 
@@ -54,12 +52,11 @@ export const registerUserService = async (data: {
       return { data: null, message: "Failed to create user", error: null };
     }
 
-    const referrerRewardGranted = !!referrer; 
 
     return {
       data: {
         user: newUser as UserSelectSchema,
-        referrerRewardGranted,
+
       },
       message: "User created successfully",
       error: null,
