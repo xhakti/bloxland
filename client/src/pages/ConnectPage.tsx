@@ -10,12 +10,12 @@ const ConnectPage = () => {
     chainId,
     address,
     isConnected,
-    
+
     // Actions
     handleButtonClick,
     handleUsernameChange,
     formatAddress,
-    
+
     // Computed values
     getTitle,
     getDescription,
@@ -38,7 +38,7 @@ const ConnectPage = () => {
           opacity: 0.05,
         }}
       ></div>
-      
+
       {/* Main Content */}
       <div className="relative z-10 min-h-[100dvh] flex items-center justify-center">
         <div className="text-center space-y-8 px-6 sm:px-8 max-w-2xl mx-auto">
@@ -57,7 +57,7 @@ const ConnectPage = () => {
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white leading-tight font-parkinsans">
               {getTitle()}
             </h1>
-            
+
             {/* Why Connect Explanation */}
             <div className="mt-8 p-4 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg max-w-md mx-auto">
               <p className="text-sm text-neutral-300 font-lexend leading-relaxed">
@@ -66,9 +66,10 @@ const ConnectPage = () => {
             </div>
           </div>
 
-          {/* Connection Status Info */}
+          {/* Connection Status Info (hidden during location, username & complete steps) */}
           {isConnected &&
             authState.step !== "complete" &&
+            authState.step !== "location" &&
             authState.step !== "username" && (
               <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 max-w-md mx-auto">
                 <div className="space-y-3 text-sm">
@@ -102,7 +103,33 @@ const ConnectPage = () => {
               </div>
             )}
 
-          {/* Username Input Section */}
+          {/* Location Permission Step - now before username */}
+          {authState.step === "location" && (
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 max-w-md mx-auto">
+              <div className="space-y-5 text-left">
+                <h3 className="text-lg font-semibold text-white font-lexend">Enable Location</h3>
+                <p className="text-sm text-neutral-300 font-lexend leading-relaxed">
+                  We use your approximate location to place you in the world, show nearby checkpoints, quests and reward zones. Precise coordinates are not permanently stored.
+                </p>
+                <ul className="list-disc pl-5 space-y-1 text-xs text-neutral-400 font-lexend">
+                  <li>Improves map centering & avatar spawn</li>
+                  <li>Unlocks location-based quests & rewards</li>
+                  <li>You can skip and enable later in settings</li>
+                </ul>
+                {authState.locationStatus === 'granted' && (
+                  <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-3 text-green-300 text-sm font-lexend">✅ Location active</div>
+                )}
+                {authState.locationStatus === 'denied' && (
+                  <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 text-yellow-300 text-sm font-lexend">⚠️ Permission denied or blocked. You can proceed without it.</div>
+                )}
+                {authState.locationStatus === 'requesting' && (
+                  <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-3 text-blue-300 text-sm font-lexend animate-pulse">Requesting permission...</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Username Input Section (moved after location) */}
           {authState.step === "username" && (
             <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 max-w-md mx-auto">
               <div className="space-y-4">
@@ -149,6 +176,7 @@ const ConnectPage = () => {
             </div>
           )}
 
+
           {/* Error Messages */}
           {getCurrentError() && (
             <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 max-w-md mx-auto">
@@ -183,23 +211,18 @@ const ConnectPage = () => {
 
           {/* Progress Indicator */}
           <div className="flex justify-center space-x-2 mt-6">
-            {["connect", "sign", "verify", "username", "complete"].map(
+            {["connect", "sign", "verify", "location", "username", "complete"].map(
               (step, index) => (
                 <div
                   key={step}
-                  className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                    step === authState.step
-                      ? "bg-blue-400 scale-125"
-                      : [
-                          "connect",
-                          "sign",
-                          "verify",
-                          "username",
-                          "complete",
-                        ].indexOf(authState.step) > index
+                  className={`w-2 h-2 rounded-full transition-all duration-300 ${step === authState.step
+                    ? "bg-blue-400 scale-125"
+                    : [
+                      "connect", "sign", "verify", "location", "username", "complete",
+                    ].indexOf(authState.step) > index
                       ? "bg-green-400"
                       : "bg-neutral-600"
-                  }`}
+                    }`}
                 />
               )
             )}
