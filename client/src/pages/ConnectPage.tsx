@@ -5,6 +5,7 @@ import {
   useConnect,
   useSignMessage,
 } from "wagmi";
+import { useAppKit } from "@reown/appkit/react";
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { baseSepolia, sepolia } from "wagmi/chains";
@@ -28,7 +29,8 @@ const ConnectPage = () => {
   const { isConnected, address } = useAccount();
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
-  const { connect } = useConnect();
+  const { connect, connectors } = useConnect();
+  const appKit = useAppKit();
   const navigate = useNavigate();
   const {
     setAuthentication,
@@ -309,8 +311,43 @@ const ConnectPage = () => {
     setIsConnecting(true);
     setAuthState((prev) => ({ ...prev, error: "" }));
     try {
-      await connect({ connector: injected() });
-      log("Wallet connected successfully");
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+      const injectedConnector = connectors.find(c => c.id.toLowerCase().includes("injected"));
+      const walletConnectConnector = connectors.find(c => c.id.toLowerCase().includes("wallet"));
+
+      // Mobile strategy: prefer AppKit modal (deep links). If inside a wallet's in-app browser (injected present), just use injected.
+      if (isMobile) {
+        if (injectedConnector && injectedConnector.ready) {
+          log("Mobile in-app browser detected, using injected connector");
+          await connect({ connector: injectedConnector });
+          return;
+        }
+        if (appKit?.open) {
+          log("Opening AppKit modal for mobile wallet selection");
+          await appKit.open({ view: "Connect" });
+          return; // modal handles further connection
+        }
+        if (walletConnectConnector) {
+          log("Falling back to direct WalletConnect connector (no modal)");
+          await connect({ connector: walletConnectConnector });
+          return;
+        }
+      }
+
+      // Desktop strategy: injected first, else modal, else walletconnect fallback
+      if (injectedConnector && injectedConnector.ready) {
+        log("Using injected connector (desktop)");
+        await connect({ connector: injectedConnector });
+      } else if (appKit?.open) {
+        log("Injected not ready, opening AppKit modal (desktop)");
+        await appKit.open({ view: "Connect" });
+      } else if (walletConnectConnector) {
+        log("Using WalletConnect fallback (desktop)");
+        await connect({ connector: walletConnectConnector });
+      } else {
+        throw new Error("No available wallet connectors");
+      }
     } catch (error) {
       log("Connection failed:", error);
       setAuthState((prev) => ({
@@ -431,7 +468,7 @@ const ConnectPage = () => {
       setTimeout(() => {
         log("Navigating to game after registration");
         // navigate('/game')
-        navigate("/game-integrations");
+        navigate("/game");
       }, 2000);
     } catch (error: any) {
       log("User registration failed:", error);
@@ -713,6 +750,7 @@ const ConnectPage = () => {
               onClick={handleButtonClick}
               disabled={isButtonDisabled()}
               className="px-8 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              data-testid="connect-wallet-button"
             >
               {getButtonText()}
             </button>
@@ -725,19 +763,18 @@ const ConnectPage = () => {
             (step, index) => (
               <div
                 key={step}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  step === authState.step
-                    ? "bg-blue-400 scale-125"
-                    : [
-                        "connect",
-                        "sign",
-                        "verify",
-                        "username",
-                        "complete",
-                      ].indexOf(authState.step) > index
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${step === authState.step
+                  ? "bg-blue-400 scale-125"
+                  : [
+                    "connect",
+                    "sign",
+                    "verify",
+                    "username",
+                    "complete",
+                  ].indexOf(authState.step) > index
                     ? "bg-green-400"
                     : "bg-gray-600"
-                }`}
+                  }`}
               />
             )
           )}

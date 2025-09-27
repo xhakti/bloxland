@@ -69,12 +69,13 @@ const BottomBar: React.FC<BottomBarProps> = ({
                 </p>
                 <p className="text-gray-400 text-sm">{ensName || "No ENS"}</p>
                 {userType && (
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    userType === 'sponsor' 
-                      ? 'bg-yellow-400/20 text-yellow-400' 
-                      : 'bg-blue-400/20 text-blue-400'
-                  }`}>
-                    {userType === 'sponsor' ? 'Sponsor' : 'User'}
+                  <span
+                    className={`text-xs px-2 py-1 rounded-full ${userType === "sponsor"
+                        ? "bg-yellow-400/20 text-yellow-400"
+                        : "bg-blue-400/20 text-blue-400"
+                      }`}
+                  >
+                    {userType === "sponsor" ? "Sponsor" : "User"}
                   </span>
                 )}
               </div>
@@ -83,6 +84,31 @@ const BottomBar: React.FC<BottomBarProps> = ({
 
           {/* Sidebar Menu */}
           <div className="flex-1 p-4 space-y-2">
+            {/* Lighting Presets */}
+            <div className="mb-4">
+              <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">Lighting Presets</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: 'Auto', value: 'auto' },
+                  { label: 'Dawn', value: 'dawn' },
+                  { label: 'Noon', value: 'noon' },
+                  { label: 'Evening', value: 'evening' },
+                  { label: 'Night', value: 'night' },
+                ].map(p => (
+                  <button
+                    key={p.value}
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent('lightPresetChange', { detail: { preset: p.value } }));
+                      setShowSidebar(false); // close after selection
+                    }}
+                    className="w-full px-3 py-2 text-xs font-medium rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <button
               onClick={() => {
                 setShowSidebar(false);
@@ -95,7 +121,7 @@ const BottomBar: React.FC<BottomBarProps> = ({
             </button>
 
             {/* Sponsor-specific menu items */}
-            {userType === 'sponsor' && (
+            {userType === "sponsor" && (
               <>
                 <button
                   onClick={() => {
@@ -122,12 +148,10 @@ const BottomBar: React.FC<BottomBarProps> = ({
             )}
 
             {/* User-specific menu items */}
-            {userType === 'user' && (
+            {userType === "user" && (
               <button
                 onClick={() => {
-                  setShowSidebar(false);
-                  // Add leaderboard navigation later
-                  console.log("Leaderboard clicked");
+                  navigate("/leaderboard");
                 }}
                 className="w-full flex items-center space-x-3 px-4 py-3 text-white hover:bg-white/10 rounded-lg transition-colors"
               >

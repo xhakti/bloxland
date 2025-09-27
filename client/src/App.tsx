@@ -14,6 +14,8 @@ const GameIntegrationsPage = React.lazy(() => import('./pages/GameIntegrationsPa
 const CreateCheckpointPage = React.lazy(() => import('./pages/CreateCheckpointPage'));
 const SponsorDashboard = React.lazy(() => import('./pages/SponsorDashboard'));
 const CheckpointDetailPage = React.lazy(() => import('./pages/CheckpointDetailPage'));
+const LeaderboardPage = React.lazy(() => import('./pages/LeaderboardPage'));
+const MiniGamesPage = React.lazy(() => import('./pages/MiniGamesPage'));
 
 import './index.css';
 
@@ -62,6 +64,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 // Main App component
 const App: React.FC = () => {
+  if (!wagmiAdapter?.wagmiConfig) {
+    return <PageLoader />;
+  }
+
   return (
     <WagmiProvider config={wagmiAdapter.wagmiConfig}>
       <QueryClientProvider client={queryClient}>
@@ -72,6 +78,11 @@ const App: React.FC = () => {
                 <Routes>
                   <Route path="/" element={<HomePage />} />
                   <Route path="/connect" element={<ConnectPage />} />
+                  <Route path="/leaderboard" element={<LeaderboardPage />} />
+                  <Route path="/mini-games" element={<MiniGamesPage />} />
+                  <Route path="/game-integrations" element={
+                    <GameIntegrationsPage />
+                  } />
                   <Route
                     path="/game"
                     element={
@@ -88,11 +99,6 @@ const App: React.FC = () => {
                   <Route path="/sponsor-dashboard" element={
                     <ProtectedRoute>
                       <SponsorDashboard />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/game-integrations" element={
-                    <ProtectedRoute>
-                      <GameIntegrationsPage />
                     </ProtectedRoute>
                   } />
                   <Route path="/checkpoint/:id" element={
