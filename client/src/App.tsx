@@ -5,7 +5,6 @@ import { wagmiAdapter } from './config/appkit'
 import HomePage from './pages/HomePage';
 import GamePage from './pages/GamePage';
 import ConnectPage from './pages/ConnectPage';
-// import SettingsPage from './pages/SettingsPage';
 import './index.css';
 
 // Setup queryClient
@@ -21,7 +20,6 @@ function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/connect" element={<ConnectPage />} />
               <Route path="/game" element={<GamePage />} />
-              {/* <Route path="/settings" element={<SettingsPage />} /> */}
             </Routes>
           </div>
         </Router>
