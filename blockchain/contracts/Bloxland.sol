@@ -20,6 +20,7 @@ contract Bloxland is EIP712 {
 
   event PlayStarted(uint256 playId);
   event PlayEnded(uint256 playId, int8 result);
+  event RandomnessDelivered(uint64 sequenceNumber, bytes32 randomNumber);
 
   struct Game {
     // Name of the game
@@ -68,6 +69,11 @@ contract Bloxland is EIP712 {
 
   uint256 private _nextSequenceNumber = 1;
 
+  modifier onlyEntropy() {
+    require(msg.sender == address(entropy), "Only entropy");
+    _;
+  }
+
   constructor(
     address _oracle,
     address _entropy,
@@ -114,7 +120,7 @@ contract Bloxland is EIP712 {
     }
 
     if (theGame.random) {
-      uint32 gasLimit = 12500000;
+      uint32 gasLimit = 500000; // Keep callback lightweight; adjust as needed
 
       // Contract needs ETH to pay for random
       uint256 fee = entropy.getFeeV2(gasLimit);
@@ -173,7 +179,7 @@ contract Bloxland is EIP712 {
     uint64 sequenceNumber,
     address,
     bytes32 randomNumber
-  ) internal {
+  ) external onlyEntropy {
     // Play memory thePlay = plays[sequenceNumber];
 
     // if (thePlay.player == address(0)) {
@@ -191,6 +197,7 @@ contract Bloxland is EIP712 {
     // }
 
     plays[sequenceNumber].randomNumber = randomNumber;
+    emit RandomnessDelivered(sequenceNumber, randomNumber);
   }
 
   function answerWithSignature(
@@ -207,7 +214,7 @@ contract Bloxland is EIP712 {
       revert("Invalid answer");
     }
 
-    if (_result != -1 || _result != 1) {
+    if (_result != -1 && _result != 1) {
       revert("Invalid result");
     }
 

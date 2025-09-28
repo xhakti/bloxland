@@ -1,5 +1,5 @@
 export const BloxLand_CONTRACT_ADDRESS =
-  "0xD3d9C446F30347E3c09bd6A219012037951c30b1";
+  "0xf5F15A92fDE44Bb5ab4F3cf147231F326A6a242C";
 export const BloxLand_CONTRACT_ABI = [
   {
     inputs: [
