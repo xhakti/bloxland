@@ -14,7 +14,13 @@ import { useUserRegistrationFlow, getErrorMessage } from "./useApi";
 import { apiClient } from "../lib/api";
 import type { ApiError, User } from "../lib/api";
 
-export type AuthStep = "connect" | "sign" | "verify" | "username" | "complete";
+export type AuthStep =
+  | "connect"
+  | "sign"
+  | "verify"
+  | "username"
+  | "location"
+  | "complete";
 
 export interface AuthState {
   step: AuthStep;
@@ -22,6 +28,9 @@ export interface AuthState {
   error: string;
   existingUser: User | null;
   username: string;
+  // Location specific
+  locationPermission: PermissionState | "unsupported" | null;
+  locationStatus: "idle" | "requesting" | "granted" | "denied";
 }
 
 export const useConnectPageAuth = () => {
@@ -46,6 +55,8 @@ export const useConnectPageAuth = () => {
     error: "",
     existingUser: null,
     username: "",
+    locationPermission: null,
+    locationStatus: "idle",
   });
 
   const [showOverlay, setShowOverlay] = useState(false);
@@ -93,7 +104,7 @@ export const useConnectPageAuth = () => {
     // If fully authenticated and connected, redirect to game
     if (isAuthenticated && isConnected && isOnCorrectNetwork) {
       log("Already authenticated and connected, redirecting to game");
-      navigate("/game-integrations");
+      navigate("/game");
       return;
     }
 
@@ -220,7 +231,7 @@ export const useConnectPageAuth = () => {
 
             setAuthState((prev) => ({
               ...prev,
-              step: "complete",
+              step: "location", // proceed to location step
               isLoading: false,
               existingUser: userData,
               username: normalizedUsername,
@@ -245,7 +256,7 @@ export const useConnectPageAuth = () => {
 
             setTimeout(() => {
               log("Navigating to game");
-              navigate("/game-integrations");
+              navigate("/game");
             }, 1500);
           } else {
             log("No existing user found, proceeding to username step");
@@ -428,8 +439,8 @@ export const useConnectPageAuth = () => {
       setShowOverlay(true);
       setTimeout(() => {
         log("Navigating to game after registration");
-        navigate("/game-integrations");
-      }, 2000);
+        navigate("/game");
+      }, 1500);
     } catch (error: any) {
       log("User registration failed:", error);
 
@@ -474,6 +485,8 @@ export const useConnectPageAuth = () => {
         return authState.existingUser
           ? "Welcome Back, Explorer!"
           : "Verifying Your Account";
+      case "location":
+        return "Enable Location";
       case "username":
         return "Choose Your Username";
       case "complete":
@@ -495,6 +508,8 @@ export const useConnectPageAuth = () => {
         return authState.existingUser
           ? "We found your account. Preparing your world..."
           : "Hold tight while we check if you already have a Bloxland profile.";
+      case "location":
+        return "We use your approximate location to place you in the world, show nearby checkpoints and quests. You stay in control.";
       case "username":
         return "Choose a unique username for your Bloxland ENS domain. This will be your identity in the game.";
       case "complete":
@@ -513,6 +528,11 @@ export const useConnectPageAuth = () => {
       return "Verifying account...";
     if (authState.isLoading && authState.step === "username")
       return "Creating account...";
+    if (
+      authState.step === "location" &&
+      authState.locationStatus === "requesting"
+    )
+      return "Requesting...";
     if (isSignPending) return "Signing...";
     if (isRegistering) return "Creating account...";
 
@@ -525,6 +545,10 @@ export const useConnectPageAuth = () => {
         return "Verifying account...";
       case "username":
         return "Claim Username";
+      case "location":
+        if (authState.locationStatus === "granted") return "Continue";
+        if (authState.locationStatus === "denied") return "Skip for now";
+        return "Enable Location";
       case "complete":
         return "Welcome to Bloxland! ✓";
       default:
@@ -560,6 +584,28 @@ export const useConnectPageAuth = () => {
       case "username":
         handleUsernameSubmit();
         break;
+      case "location": {
+        const proceed = () => {
+          if (authState.existingUser) {
+            // Existing user skips username entirely
+            setAuthState((prev) => ({ ...prev, step: "complete" }));
+            setShowOverlay(true);
+            setTimeout(() => navigate("/game"), 1200);
+          } else {
+            // New user now chooses username after location
+            setAuthState((prev) => ({ ...prev, step: "username" }));
+          }
+        };
+
+        if (authState.locationStatus === "granted") {
+          proceed();
+        } else if (authState.locationStatus === "denied") {
+          proceed();
+        } else {
+          requestLocationPermission();
+        }
+        break;
+      }
       default:
         break;
     }
@@ -568,6 +614,9 @@ export const useConnectPageAuth = () => {
   const isButtonDisabled = () => {
     if (authState.step === "username") {
       return !authState.username.trim() || authState.isLoading || isRegistering;
+    }
+    if (authState.step === "location") {
+      return authState.locationStatus === "requesting";
     }
     return (
       isConnecting ||
@@ -578,6 +627,75 @@ export const useConnectPageAuth = () => {
     );
   };
 
+  // Request location permission logic
+  const requestLocationPermission = () => {
+    if (!("geolocation" in navigator)) {
+      setAuthState((prev) => ({
+        ...prev,
+        locationPermission: "unsupported",
+        locationStatus: "denied",
+      }));
+      return;
+    }
+    setAuthState((prev) => ({ ...prev, locationStatus: "requesting" }));
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          console.log("[Location] Granted", pos.coords);
+          setAuthState((prev) => ({ ...prev, locationStatus: "granted" }));
+        },
+        (err) => {
+          console.warn("[Location] Denied or error", err);
+          setAuthState((prev) => ({
+            ...prev,
+            locationStatus: "denied",
+            error: prev.error || "",
+          }));
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    } catch (e) {
+      console.error("[Location] Exception requesting permission", e);
+      setAuthState((prev) => ({ ...prev, locationStatus: "denied" }));
+    }
+  };
+
+  // Proactively query permission state (where supported) when entering location step
+  useEffect(() => {
+    if (
+      authState.step === "location" &&
+      "permissions" in navigator &&
+      (navigator as any).permissions
+    ) {
+      try {
+        (navigator as any).permissions
+          .query({ name: "geolocation" })
+          .then((status: any) => {
+            setAuthState((prev) => ({
+              ...prev,
+              locationPermission: status.state as PermissionState,
+            }));
+            if (status.state === "granted") {
+              setAuthState((prev) => ({ ...prev, locationStatus: "granted" }));
+            } else if (status.state === "denied") {
+              setAuthState((prev) => ({ ...prev, locationStatus: "denied" }));
+            }
+            status.onchange = () => {
+              setAuthState((prev) => ({
+                ...prev,
+                locationPermission: status.state as PermissionState,
+              }));
+            };
+          })
+          .catch(() => {
+            /* ignore */
+          });
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [authState.step]);
+
   return {
     // State
     authState,
@@ -586,12 +704,12 @@ export const useConnectPageAuth = () => {
     chainId,
     address,
     isConnected,
-    
+
     // Actions
     handleButtonClick,
     handleUsernameChange,
     formatAddress,
-    
+
     // Computed values
     getTitle,
     getDescription,
@@ -599,5 +717,6 @@ export const useConnectPageAuth = () => {
     getCurrentError,
     getEnsDisplayName,
     isButtonDisabled,
+    requestLocationPermission,
   };
 };

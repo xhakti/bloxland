@@ -14,7 +14,7 @@ import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-contract Bloxland is EIP712 {
+contract Bloxland is EIP712, IEntropyConsumer {
   using SignatureChecker for address;
   using ECDSA for bytes32;
 
@@ -114,11 +114,13 @@ contract Bloxland is EIP712 {
     }
 
     if (theGame.random) {
+      uint32 gasLimit = 5000000;
+
       // Contract needs ETH to pay for random
-      uint256 fee = entropy.getFeeV2();
+      uint256 fee = entropy.getFeeV2(gasLimit);
 
       // Use the given random sequency number as play id
-      uint64 sequenceNumber = entropy.requestV2{value: fee}();
+      uint64 sequenceNumber = entropy.requestV2{value: fee}(gasLimit);
 
       plays[sequenceNumber] = thePlay;
 
@@ -171,22 +173,22 @@ contract Bloxland is EIP712 {
     uint64 sequenceNumber,
     address,
     bytes32 randomNumber
-  ) internal {
-    Play memory thePlay = plays[sequenceNumber];
+  ) internal override {
+    // Play memory thePlay = plays[sequenceNumber];
 
-    if (thePlay.player == address(0)) {
-      revert("Play not found");
-    }
+    // if (thePlay.player == address(0)) {
+    //   revert("Play not found");
+    // }
 
-    Game memory theGame = games[thePlay.gameId];
+    // Game memory theGame = games[thePlay.gameId];
 
-    if (bytes(theGame.name).length == 0) {
-      revert("Game not found");
-    }
+    // if (bytes(theGame.name).length == 0) {
+    //   revert("Game not found");
+    // }
 
-    if (!theGame.random) {
-      revert("Cannot process random number for not random game");
-    }
+    // if (!theGame.random) {
+    //   revert("Cannot process random number for not random game");
+    // }
 
     plays[sequenceNumber].randomNumber = randomNumber;
   }
@@ -205,7 +207,7 @@ contract Bloxland is EIP712 {
       revert("Invalid answer");
     }
 
-    if (_result != -1 || _result != 1) {
+    if (_result != -1 && _result != 1) {
       revert("Invalid result");
     }
 
@@ -310,6 +312,10 @@ contract Bloxland is EIP712 {
   function _mapRandomNumber(bytes32 randomNumber, int256 minRange, int256 maxRange) pure internal returns (int256) {
     uint256 range = uint256(maxRange - minRange + 1);
     return minRange + int256(uint256(randomNumber) % range);
+  }
+
+  function getEntropy() internal view override returns (address) {
+    return address(entropy);
   }
 
   receive() external payable {}

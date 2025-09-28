@@ -56,12 +56,19 @@ export class AvatarLayer implements mapboxgl.CustomLayerInterface {
     private lastOcclusionUpdate = 0;
     private readonly OCCLUSION_UPDATE_INTERVAL = 100;
     private readonly OCCLUSION_RADIUS = 15; // meters
+    // Smoothed movement tracking
+    private currentLngLat?: [number, number];
+    private targetLngLat?: [number, number];
+    // Queue a walking intent if start/stop called before animations ready
+    private pendingWalkCommand: 'start' | 'stop' | null = null;
 
     constructor(options: AvatarLayerOptions) {
         this.id = options.id;
         // Provide default giant avatar height if not specified
         this.options = { ...options, avatarHeight: options.avatarHeight || 25 };
         this.clock = new THREE.Clock();
+        this.currentLngLat = [...options.position];
+        this.targetLngLat = [...options.position];
     }
 
     onAdd(map: mapboxgl.Map, gl: WebGLRenderingContext) {
@@ -239,30 +246,26 @@ export class AvatarLayer implements mapboxgl.CustomLayerInterface {
 
     // Expose simple walking animation controls (kept from previous implementation)
     public startWalking() {
-        if (this.animationStateMachine) {
-            try {
-                if ((this.animationStateMachine as any).setWalking) {
-                    (this.animationStateMachine as any).setWalking(true);
-                } else if ((this.animationStateMachine as any).play) {
-                    (this.animationStateMachine as any).play('walk');
-                }
-            } catch (e) {
-                // ignore
-            }
+        if (!this.animationStateMachine || !this.areAnimationsLoaded) {
+            this.pendingWalkCommand = 'start';
+            return;
+        }
+        try {
+            (this.animationStateMachine as any).startWalking?.();
+        } catch (e) {
+            console.warn('startWalking failed', e);
         }
     }
 
     public stopWalking() {
-        if (this.animationStateMachine) {
-            try {
-                if ((this.animationStateMachine as any).setWalking) {
-                    (this.animationStateMachine as any).setWalking(false);
-                } else if ((this.animationStateMachine as any).play) {
-                    (this.animationStateMachine as any).play('idle');
-                }
-            } catch (e) {
-                // ignore
-            }
+        if (!this.animationStateMachine || !this.areAnimationsLoaded) {
+            this.pendingWalkCommand = 'stop';
+            return;
+        }
+        try {
+            (this.animationStateMachine as any).stopWalking?.();
+        } catch (e) {
+            console.warn('stopWalking failed', e);
         }
     }
 
@@ -438,8 +441,26 @@ export class AvatarLayer implements mapboxgl.CustomLayerInterface {
             outerMat.needsUpdate = true;
         }
 
-        // Transform avatar to correct map position
-        const modelOrigin = this.options.position;
+        // Smoothly interpolate current position toward target to avoid teleport jumps
+        if (this.currentLngLat && this.targetLngLat) {
+            const cur = this.currentLngLat;
+            const tgt = this.targetLngLat;
+            const dLng = tgt[0] - cur[0];
+            const dLat = tgt[1] - cur[1];
+            const dist = Math.hypot(dLng, dLat);
+            if (dist > 0.0000005) { // about 5cm
+                // Adaptive factor: faster for larger jumps, capped for stability
+                const factor = Math.min(0.6, 0.15 + dist * 900);
+                cur[0] += dLng * factor;
+                cur[1] += dLat * factor;
+            } else {
+                cur[0] = tgt[0];
+                cur[1] = tgt[1];
+            }
+        }
+
+        // Use smoothed origin
+        const modelOrigin = this.currentLngLat || this.options.position;
         const modelAltitude = 0; // Keep ground level (giant avatar)
         const modelRotate = [Math.PI / 2, Math.PI, 0];
 
@@ -563,10 +584,9 @@ export class AvatarLayer implements mapboxgl.CustomLayerInterface {
     }
 
     updatePosition(newPosition: [number, number]) {
-        this.options.position = newPosition;
-        if (this.map) {
-            this.map.triggerRepaint();
-        }
+        this.targetLngLat = [...newPosition];
+        if (!this.currentLngLat) this.currentLngLat = [...newPosition];
+        if (this.map) this.map.triggerRepaint();
     }
 
     // Load ReadyPlayerMe animations
@@ -623,6 +643,15 @@ export class AvatarLayer implements mapboxgl.CustomLayerInterface {
             this.animationStateMachine.registerAnimations(this.actions);
             this.areAnimationsLoaded = true;
             console.log("Animation system ready!");
+            // Flush any queued walking intent
+            if (this.pendingWalkCommand && this.animationStateMachine) {
+                if (this.pendingWalkCommand === 'start') {
+                    (this.animationStateMachine as any).startWalking?.();
+                } else if (this.pendingWalkCommand === 'stop') {
+                    (this.animationStateMachine as any).stopWalking?.();
+                }
+                this.pendingWalkCommand = null;
+            }
 
         } catch (error) {
             console.error("Failed to load animations:", error);

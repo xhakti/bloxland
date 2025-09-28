@@ -441,6 +441,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
             }
         };
 
+        const lastAppliedRef = { value: '' } as { value: string };
         const applyBuiltIn = (preset: string, attempt = 0) => {
             if (!map.isStyleLoaded()) {
                 if (attempt < 10) return setTimeout(() => applyBuiltIn(preset, attempt + 1), 150);
@@ -457,9 +458,12 @@ const MapContainer: React.FC<MapContainerProps> = ({
                 night: 'night'
             };
             const target = mapping[preset] || 'day';
+            if (lastAppliedRef.value === target) {
+                return; // avoid spam applying same preset
+            }
             try {
-                // Standard style config property
                 (map as any).setConfigProperty?.('basemap', 'lightPreset', target);
+                lastAppliedRef.value = target;
                 console.log('[Lighting] Applied built-in preset:', preset, '->', target);
             } catch (err) {
                 console.warn('[Lighting] Built-in preset apply failed, using fallback. Err:', err);
@@ -478,8 +482,8 @@ const MapContainer: React.FC<MapContainerProps> = ({
             applyBuiltIn(preset);
         };
 
-        // Apply default night immediately
-        applyBuiltIn('night');
+        // Apply default night immediately (only once)
+        if (lastAppliedRef.value !== 'night') applyBuiltIn('night');
         // If user switches to auto later, auto will take over. We don't auto-switch on load to keep night default.
         const autoInterval = window.setInterval(chooseAutoPreset, 5 * 60 * 1000);
 
@@ -570,7 +574,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
                             // Reduced threshold for more frequent updates (~11m at equator -> changed to ~2m):
                             const lngDelta = Math.abs((userLocation?.[0] ?? longitude) - longitude);
                             const latDelta = Math.abs((userLocation?.[1] ?? latitude) - latitude);
-                            const THRESHOLD = 0.00002; // ~2m
+                            const THRESHOLD = 0.00001; // ~1m for more frequent updates
                             if (!userLocation || lngDelta > THRESHOLD || latDelta > THRESHOLD) {
                                 console.log('Location updated to:', location);
                                 setUserLocation(location);
@@ -583,7 +587,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
                                     if (prev) {
                                         const moveLngDelta = Math.abs(prev[0] - location[0]);
                                         const moveLatDelta = Math.abs(prev[1] - location[1]);
-                                        const MOVEMENT_TRIGGER = 0.00001; // ~1m
+                                        const MOVEMENT_TRIGGER = 0.000005; // ~0.5m trigger walking
                                         if (moveLngDelta > MOVEMENT_TRIGGER || moveLatDelta > MOVEMENT_TRIGGER) {
                                             avatarLayerRef.current.startWalking?.();
                                             if (walkingStopTimeoutRef.current) {
@@ -591,14 +595,14 @@ const MapContainer: React.FC<MapContainerProps> = ({
                                             }
                                             walkingStopTimeoutRef.current = window.setTimeout(() => {
                                                 avatarLayerRef.current?.stopWalking?.();
-                                            }, 3000); // stop walking after 3s of no further movement
+                                            }, 2000); // stop walking after 2s of no further movement
                                         }
                                     } else {
                                         // First position sets baseline
                                         avatarLayerRef.current.startWalking?.();
                                         walkingStopTimeoutRef.current = window.setTimeout(() => {
                                             avatarLayerRef.current?.stopWalking?.();
-                                        }, 3000);
+                                        }, 2000);
                                     }
                                     lastMovementLocationRef.current = location;
                                 }
