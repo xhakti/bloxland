@@ -20,6 +20,7 @@ contract Bloxland is EIP712, IEntropyConsumer {
 
   event PlayStarted(uint256 playId);
   event PlayEnded(uint256 playId, int8 result);
+  event RandomnessDelivered(uint64 sequenceNumber, bytes32 randomNumber);
 
   struct Game {
     // Name of the game
@@ -67,6 +68,11 @@ contract Bloxland is EIP712, IEntropyConsumer {
   mapping(uint256 => Play) public plays;
 
   uint256 private _nextSequenceNumber = 1;
+
+  modifier onlyEntropy() {
+    require(msg.sender == address(entropy), "Only entropy");
+    _;
+  }
 
   constructor(
     address _oracle,
@@ -191,6 +197,7 @@ contract Bloxland is EIP712, IEntropyConsumer {
     // }
 
     plays[sequenceNumber].randomNumber = randomNumber;
+    emit RandomnessDelivered(sequenceNumber, randomNumber);
   }
 
   function answerWithSignature(
@@ -293,7 +300,7 @@ contract Bloxland is EIP712, IEntropyConsumer {
     // https://docs.pyth.network/price-feeds/price-feeds
     PythStructs.Price memory btc = pyth.getPriceNoOlderThan(
       0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43,
-      60
+      6000
     );
 
     if (thePlay.gameId == GAME_BTC_GT) {

@@ -1,11 +1,3 @@
-1. **All available routes** (user + partner + service)
-2. **Method + Path**
-3. **Request body / params / query** (based on the services you showed)
-4. **Sample response (success + error)**
-5. **Unified format (data, message, error)** — since all services follow that
-
-Here’s an updated **README.md** that covers **every route your services support** 👇
-
 ---
 
 # 🚀 Quest API v2
@@ -16,26 +8,26 @@ Express.js + TypeScript backend powering **Users, Partners, Social Quests, Rewar
 
 ## 📦 Features
 
-- User registration, profile update, leaderboard
-- Quest creation, submission, winner assignment
-- Reward claiming & tracking
-- Partner APIs with access control
-- Pagination for list endpoints
-- Unified JSON response format
+* User registration, profile update, leaderboard
+* Quest creation, submission, winner assignment
+* Reward claiming & tracking
+* Partner APIs with access control
+* Pagination for list endpoints
+* Unified JSON response format
 
 ---
 
 ## ⚙️ Setup
 
 ```bash
-git clone https://github.com/your-org/quest-api.git
-cd quest-api
+git clone https://github.com/xhakti/bloxland
+cd bloxland
 npm install
 cp .env.example .env
 npm run dev
 ```
 
-**Server:** <http://localhost:3000>
+**Server:** [http://localhost:3000](http://localhost:3000)
 
 ---
 
@@ -65,8 +57,6 @@ Base path: `/user`
 
 **POST** `/user/register`
 
-**Body:**
-
 ```json
 {
   "address": "0x123",
@@ -94,8 +84,6 @@ Base path: `/user`
 
 **GET** `/user/:id`
 
-**Response:**
-
 ```json
 {
   "data": { "id": "u1", "username": "alice" },
@@ -104,17 +92,15 @@ Base path: `/user`
 }
 ```
 
+---
+
 #### Get User by Address
 
 **GET** `/user/:address`
 
-**Response:**
-
 ```json
 {
-  "data": {
-    /* user object */
-  },
+  "data": { "id": "u1", "username": "alice" },
   "message": "User retrieved successfully",
   "error": null
 }
@@ -126,13 +112,9 @@ Base path: `/user`
 
 **PUT** `/user/:address`
 
-**Body:**
-
 ```json
 { "username": "alice_updated", "email": "alice_updated@example.com" }
 ```
-
-**Response:**
 
 ```json
 {
@@ -147,8 +129,6 @@ Base path: `/user`
 #### Leaderboard
 
 **GET** `/user/leaderboard?page={page}&limit={limit}`
-
-**Response:**
 
 ```json
 {
@@ -167,20 +147,13 @@ Base path: `/user`
 
 **POST** `/user/submit-quest/:questId`
 
-**Body:**
-
 ```json
-{ "userAddress": "0x123", "submissionLink": "https://example-twitter.com/post" }
+{ "userAddress": "0x123", "submissionLink": "https://example.com/post" }
 ```
-
-**Response:**
 
 ```json
 {
-  "data": {
-    "questId": "q1",
-    "submissionLink": "https://example-twitter.com/post"
-  },
+  "data": { "questId": "q1", "submissionLink": "https://example.com/post" },
   "message": "Quest submission created successfully",
   "error": null
 }
@@ -192,8 +165,6 @@ Base path: `/user`
 
 **POST** `/user/add-claimed-rewards`
 
-**Body:**
-
 ```json
 {
   "userAddress": "0x123",
@@ -203,8 +174,6 @@ Base path: `/user`
   "eventType": "SOCIAL_QUEST"
 }
 ```
-
-**Response:**
 
 ```json
 {
@@ -226,8 +195,6 @@ Base path: `/partner`
 
 **POST** `/partner/add-social-quest`
 
-**Body:**
-
 ```json
 {
   "partnerAddress": "0xPARTNER",
@@ -242,8 +209,6 @@ Base path: `/partner`
 }
 ```
 
-**Response:**
-
 ```json
 {
   "data": { "questId": "q1", "questName": "Follow Project" },
@@ -257,8 +222,6 @@ Base path: `/partner`
 #### Get Partner Quests
 
 **GET** `/partner/quests/:partnerAddress?page={page}&limit={limit}`
-
-**Response:**
 
 ```json
 {
@@ -275,10 +238,52 @@ Base path: `/partner`
 
 #### Get Quest Submissions
 
-GET /partner/submissions/:questId?page&limit&partnerAddress=0xPARTNER
+**GET** `/partner/submissions/:questId?page={page}&limit={limit}&partnerAddress=0xPARTNER`
 
-Response
-
+```json
+{
+  "data": {
+    "submissions": [
+      { "submissionId": "s1", "user": "0x123", "link": "https://example.com/post" }
+    ],
+    "pagination": { "page": 1, "limit": 10, "totalPages": 1 }
+  },
+  "message": "Quest submissions fetched successfully",
+  "error": null
+}
 ```
 
+**Error Response:**
+
+```json
+{
+  "data": null,
+  "message": "Unauthorized access",
+  "error": "PARTNER_ADDRESS_MISMATCH"
+}
 ```
+
+---
+
+## 📊 API Overview (Mermaid)
+
+```mermaid
+graph TD
+    A[Service Routes] -->|GET /health| B[Health Check]
+
+    A --> C[User Routes]
+    C -->|POST /user/register| C1[Register User]
+    C -->|GET /user/:id| C2[Get User by ID]
+    C -->|GET /user/:address| C3[Get User by Address]
+    C -->|PUT /user/:address| C4[Update User]
+    C -->|GET /user/leaderboard| C5[Leaderboard]
+    C -->|POST /user/submit-quest/:questId| C6[Submit Quest]
+    C -->|POST /user/add-claimed-rewards| C7[Add Claimed Rewards]
+
+    A --> D[Partner Routes]
+    D -->|POST /partner/add-social-quest| D1[Create Social Quest]
+    D -->|GET /partner/quests/:partnerAddress| D2[Get Partner Quests]
+    D -->|GET /partner/submissions/:questId| D3[Get Quest Submissions]
+```
+
+---
