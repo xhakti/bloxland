@@ -1,4 +1,5 @@
 ````markdown
+# Client Frontend
 
 ## Overview
 
@@ -65,4 +66,3 @@ yarn preview
 * **maps/** – Map rendering and interactions
 * **views/** – Reusable page and component layouts
 
-```

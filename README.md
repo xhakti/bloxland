@@ -1,41 +1,47 @@
-# Bloxland
+We built the project with a full-stack Web3 architecture, keeping the frontend, backend, and blockchain code in a monorepo for smooth development and collaboration. The repo is structured into:
+ - Client (frontend)
+ - Server (backend)
+ - Blockchain (smart contracts)
 
-Walk. Discover. Collect.
+Frontend
+- Built with React + Vite for a fast, modular, and developer-friendly setup.
+- Styled with TailwindCSS for rapid and consistent UI design.
+- ReOwn and wagmi for blockchain wallet connections and contract interactions.
+- TanStack Query + Axios for efficient API communication with our backend.
+- Mapbox for real-time geolocation and world map rendering.
+- Ready Player Me for customizable player avatars.
 
-## Contract Mini-Games
+Backend
+- Node.js + Express powers our API layer.
+- Drizzle ORM manages database operations cleanly and in a type-safe way.
+- Supabase as our managed Postgres database for storing users, events, and checkpoint activity.
+- Handles verification of user submissions (social proofs, tx hashes, etc.), event management, and partner dashboard logic.
 
-Based on `blockchain/contracts/Bloxland.sol`:
+Blockchain (smart contracts)
+- Solidity + Hardhat for writing, and deploying smart contracts.
+- Contracts handle:
+    - Mini-game logic (price feed + randomness).
+    - Reward token issuance and distribution.
+    - Event registration and winner payouts.
 
-- Dice Guess (random)
-  - ID: `GAME_RANDOM_DICE`
-  - Answer: int64 in [1..6] representing your dice guess
-  - Outcome: 1 if random dice equals your answer; otherwise -1
+Partner technologies used
+1. Pyth Network
+    - Integrated Price Feeds for mini-games like BTC/ETH ratio guess and market cap duels.
+    - Integrated Entropy (randomness) for mini-games like coin flip, dice parity, and lucky draw.
+2. ENS Domains
+    - Integrated to simplify event and partner identity by replacing long wallet addresses with human-readable names.
+    - Users can generate subdomains, allowing them to associate their profile or participation with an easy-to-search name.
+    - These subdomains make it seamless for players to participate in leaderboards, ensuring recognition is tied to a readable identity rather than a complex wallet string.
+    - This improves both usability and community engagement, as players can easily connect, search, and be identified within the game ecosystem.
 
-- Even Number Guess (random)
-  - ID: `GAME_RANDOM_EVEN`
-  - Answer: 1 for "even", any other non-zero treated as "odd"
-  - Outcome: 1 if random number (1..100) parity matches your answer; otherwise -1
+Hacky & notable parts
+ - The trickiest challenge was integrating Pyth Network’s price feeds and entropy services alongside ENS domains, because they are not available on the same chain. We had to carefully design our contract interactions and backend flow to bridge these differences by.
+ -  We open-sourced all our code in a public GitHub monorepo.
+ - Deployed seamlessly using Railway for backend + frontend hosting, ensuring quick iteration and live demos during the hackathon.
 
-- Upper Half Guess (random)
-  - ID: `GAME_RANDOM_OVER`
-  - Answer: 1 for "> 50", any other non-zero means "<= 50"
-  - Outcome: 1 if random number (1..100) is > 50 and you answered 1; else -1 (and vice versa)
-
-- BTC Price Guess (oracle)
-  - ID: `GAME_BTC_GT`
-  - Answer: int64 threshold price; outcome is 1 if current price > answer else -1
-
-Each `play(gameId, energyAmount)` consumes ENERGY and emits `PlayStarted(playId)`. For random games, `playId` is the entropy sequence number; for non-random, a large monotonic id is used.
-
-## Answering
-
-- Random games: call `answer(playId, answer)` before randomness fulfillment; final result is decided in `entropyCallback`.
-- Non-random BTC game: `answer(playId, answer)` immediately evaluates using Pyth price and emits `PlayEnded`.
-- Off-chain: `answerWithSignature(playId, answer, result, signature)` validates a backend EIP-712 signature over `BloxlandPlay(uint256 playId,address player,int64 answer)`.
-
-## Energize Flow
-
-- Backend signs `BloxlandEnergize(address player,uint256 _amount)` per EIP-712 (`EnergyToken.sol`).
-- Frontend calls `energizeWithSignature(amount, signature)` to mint ENERGY to the caller.
-
-
+How it all comes together
+1. The frontend shows the map, checkpoints, and mini-games.
+2. When a user plays, the frontend connects to contracts via wagmi and fetches on-chain data (Pyth price feeds / entropy).
+3. The backend validates off-chain parts (social proofs, tx hashes) and updates Supabase.
+4. Rewards are issued on-chain via Solidity contracts.
+5. All of this is tied together in the monorepo, making it easy to maintain and extend post-hackathon.
