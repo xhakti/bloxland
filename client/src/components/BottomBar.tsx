@@ -11,6 +11,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useAuthStore } from "../stores/authStore";
+import { useEnergyStore } from "../stores/energyStore";
 import "../App.css";
 
 interface BottomBarProps {
@@ -26,6 +27,8 @@ const BottomBar: React.FC<BottomBarProps> = ({
 }) => {
   const navigate = useNavigate();
   const { userType } = useAuthStore();
+  const { resetEnergy } = useEnergyStore();
+  const [pressTimer, setPressTimer] = useState<number | null>(null);
   const [showSidebar, setShowSidebar] = useState(false);
 
   return (
@@ -45,9 +48,8 @@ const BottomBar: React.FC<BottomBarProps> = ({
             className="p-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm transition-colors rounded-lg border border-white/20"
           >
             <ChevronRight
-              className={`w-6 h-6 text-white transition-transform duration-300 ${
-                showSidebar ? "rotate-180" : ""
-              }`}
+              className={`w-6 h-6 text-white transition-transform duration-300 ${showSidebar ? "rotate-180" : ""
+                }`}
             />
           </button>
         </div>
@@ -55,9 +57,8 @@ const BottomBar: React.FC<BottomBarProps> = ({
 
       {/* Sidebar */}
       <div
-        className={`fixed right-0 bottom-0 top-0 z-60 w-80 bg-black border-l border-white/20 transform transition-transform duration-300 grid-bg  ease-in-out ${
-          showSidebar ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed right-0 bottom-0 top-0 z-60 w-80 bg-black border-l border-white/20 transform transition-transform duration-300 grid-bg  ease-in-out ${showSidebar ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <div className="flex flex-col h-full">
           {/* Sidebar Header */}
@@ -73,11 +74,10 @@ const BottomBar: React.FC<BottomBarProps> = ({
                 <p className="text-gray-400 text-sm">{ensName || "No ENS"}</p>
                 {userType && (
                   <span
-                    className={`text-xs px-2 py-1 rounded-full ${
-                      userType === "sponsor"
-                        ? "bg-yellow-400/20 text-yellow-400"
-                        : "bg-blue-400/20 text-blue-400"
-                    }`}
+                    className={`text-xs px-2 py-1 rounded-full ${userType === "sponsor"
+                      ? "bg-yellow-400/20 text-yellow-400"
+                      : "bg-blue-400/20 text-blue-400"
+                      }`}
                   >
                     {userType === "sponsor" ? "Sponsor" : "User"}
                   </span>
@@ -139,13 +139,32 @@ const BottomBar: React.FC<BottomBarProps> = ({
               </button>
             )}
 
+            {/* Secret energy reset: long press (600ms) or double-click */}
             <button
-              onClick={() => {
+              onDoubleClick={() => {
+                resetEnergy();
                 setShowSidebar(false);
-                // Add settings functionality later
-                console.log("Settings clicked");
               }}
-              className="w-full flex items-center space-x-3 px-4 py-3 text-white hover:bg-white/10 rounded-lg transition-colors"
+              onMouseDown={() => {
+                const timer = window.setTimeout(() => {
+                  resetEnergy();
+                  setShowSidebar(false);
+                }, 600);
+                setPressTimer(timer);
+              }}
+              onMouseUp={() => {
+                if (pressTimer) {
+                  window.clearTimeout(pressTimer);
+                  setPressTimer(null);
+                }
+              }}
+              onMouseLeave={() => {
+                if (pressTimer) {
+                  window.clearTimeout(pressTimer);
+                  setPressTimer(null);
+                }
+              }}
+              className="w-full flex items-center space-x-3 px-4 py-3 text-white opacity-60 hover:opacity-90 hover:bg-white/5 rounded-lg transition-colors select-none"
             >
               <Settings className="w-5 h-5" />
               <span className="text-lg">Settings</span>

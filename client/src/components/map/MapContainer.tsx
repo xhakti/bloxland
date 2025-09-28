@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, memo } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { AvatarLayer } from '../player/AvatarLayer';
@@ -28,7 +28,14 @@ interface MapContainerProps {
     showCheckpoints?: boolean;
 }
 
-const MapContainer: React.FC<MapContainerProps> = ({
+// Tuning constants for geolocation precision & filtering
+const GEO_MIN_MOVEMENT_DEG = 0.000005; // ~0.55m at equator (was 0.00001 ~1.1m)
+const GEO_WALK_TRIGGER_DEG = 0.0000035; // ~0.38m – triggers walking animation sooner
+const GEO_JITTER_IGNORE_METERS = 0.3; // ignore tiny distance noise
+const GEO_LARGE_JUMP_METERS = 100; // ignore improbable teleports
+const GEO_STALE_TIMEOUT_MS = 5000; // if no update in 5s, poll once
+
+const MapContainerComponent: React.FC<MapContainerProps> = ({
     onUserLocationChange,
     onMapReady,
     avatarUrl = 'https://models.readyplayer.me/68c92d1a7a525019305da2eb.glb',
@@ -564,18 +571,35 @@ const MapContainer: React.FC<MapContainerProps> = ({
             map.addControl(scaleControl, 'bottom-left');
 
             // Watch for user location changes through geolocation API
+            const lastWatchUpdateRef = { time: performance.now() };
             const watchLocation = () => {
                 if (navigator.geolocation) {
                     const watchId = navigator.geolocation.watchPosition(
                         (position) => {
                             const { latitude, longitude } = position.coords;
                             const location: [number, number] = [longitude, latitude];
+                            lastWatchUpdateRef.time = performance.now();
 
-                            // Reduced threshold for more frequent updates (~11m at equator -> changed to ~2m):
+                            // Smaller threshold for higher precision updates
                             const lngDelta = Math.abs((userLocation?.[0] ?? longitude) - longitude);
                             const latDelta = Math.abs((userLocation?.[1] ?? latitude) - latitude);
-                            const THRESHOLD = 0.00001; // ~1m for more frequent updates
-                            if (!userLocation || lngDelta > THRESHOLD || latDelta > THRESHOLD) {
+                            if (!userLocation || lngDelta > GEO_MIN_MOVEMENT_DEG || latDelta > GEO_MIN_MOVEMENT_DEG) {
+                                // Compute approximate distance to filter out unrealistic large jumps (>100m)
+                                if (userLocation) {
+                                    const toRad = (d: number) => d * Math.PI / 180;
+                                    const R = 6371000;
+                                    const dLat = toRad(latitude - userLocation[1]);
+                                    const dLng = toRad(longitude - userLocation[0]);
+                                    const lat1 = toRad(userLocation[1]);
+                                    const lat2 = toRad(latitude);
+                                    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+                                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                                    const meters = R * c;
+                                    if (meters > GEO_LARGE_JUMP_METERS) {
+                                        // Ignore this jump as improbable (likely GPS glitch)
+                                        return;
+                                    }
+                                }
                                 console.log('Location updated to:', location);
                                 setUserLocation(location);
                                 onUserLocationChange?.(location);
@@ -587,8 +611,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
                                     if (prev) {
                                         const moveLngDelta = Math.abs(prev[0] - location[0]);
                                         const moveLatDelta = Math.abs(prev[1] - location[1]);
-                                        const MOVEMENT_TRIGGER = 0.000005; // ~0.5m trigger walking
-                                        if (moveLngDelta > MOVEMENT_TRIGGER || moveLatDelta > MOVEMENT_TRIGGER) {
+                                        if (moveLngDelta > GEO_WALK_TRIGGER_DEG || moveLatDelta > GEO_WALK_TRIGGER_DEG) {
                                             avatarLayerRef.current.startWalking?.();
                                             if (walkingStopTimeoutRef.current) {
                                                 window.clearTimeout(walkingStopTimeoutRef.current);
@@ -620,12 +643,39 @@ const MapContainer: React.FC<MapContainerProps> = ({
                         {
                             enableHighAccuracy: true,
                             timeout: 8000,
-                            maximumAge: 5000 // lower cache for fresher updates
+                            maximumAge: 1000 // prefer fresher updates (was 5000)
                         }
                     );
 
+                    // Fallback polling if watch goes stale > GEO_STALE_TIMEOUT_MS
+                    const pollInterval = window.setInterval(() => {
+                        if (performance.now() - lastWatchUpdateRef.time > GEO_STALE_TIMEOUT_MS) {
+                            navigator.geolocation.getCurrentPosition(
+                                (position) => {
+                                    lastWatchUpdateRef.time = performance.now();
+                                    const { latitude, longitude } = position.coords;
+                                    const location: [number, number] = [longitude, latitude];
+                                    setUserLocation((prevLoc) => {
+                                        if (!prevLoc || Math.abs(prevLoc[0] - location[0]) > GEO_MIN_MOVEMENT_DEG || Math.abs(prevLoc[1] - location[1]) > GEO_MIN_MOVEMENT_DEG) {
+                                            onUserLocationChange?.(location);
+                                            if (avatarLayerRef.current) {
+                                                avatarLayerRef.current.updatePosition(location);
+                                            }
+                                        }
+                                        return location;
+                                    });
+                                },
+                                () => { /* ignore polling errors */ },
+                                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                            );
+                        }
+                    }, 2500);
+
                     // Cleanup function will clear the watch
-                    return () => navigator.geolocation.clearWatch(watchId);
+                    return () => {
+                        navigator.geolocation.clearWatch(watchId);
+                        window.clearInterval(pollInterval);
+                    };
                 }
             };
 
@@ -786,5 +836,15 @@ const MapContainer: React.FC<MapContainerProps> = ({
         </div>
     );
 };
+
+// Memoize to avoid re-renders from parent (e.g., energy state) unless relevant props actually change.
+const MapContainer = memo(MapContainerComponent, (prev, next) => {
+    return (
+        prev.avatarUrl === next.avatarUrl &&
+        prev.showCheckpoints === next.showCheckpoints &&
+        prev.onMapReady === next.onMapReady &&
+        prev.onUserLocationChange === next.onUserLocationChange
+    );
+});
 
 export default MapContainer;
