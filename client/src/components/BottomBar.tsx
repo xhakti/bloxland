@@ -105,7 +105,7 @@ const BottomBar: React.FC<BottomBarProps> = ({
                 <button
                   onClick={() => {
                     setShowSidebar(false);
-                    navigate("/dashboard");
+                    navigate("/sponsor-dashboard");
                   }}
                   className="w-full flex items-center space-x-3 px-4 py-3  text-white hover:bg-white/20 backdrop-blur-sm bg-white/10 border border-white/10 rounded-lg transition-colors"
                 >
@@ -116,7 +116,7 @@ const BottomBar: React.FC<BottomBarProps> = ({
                 <button
                   onClick={() => {
                     setShowSidebar(false);
-                    navigate("/create");
+                    navigate("/create-checkpoint");
                   }}
                   className="w-full flex items-center space-x-3 px-4 py-3 text-white bg-black hover:bg-white/10 border border-white/90 rounded-lg transition-colors"
                 >
@@ -130,9 +130,10 @@ const BottomBar: React.FC<BottomBarProps> = ({
             {userType === "user" && (
               <button
                 onClick={() => {
+                  setShowSidebar(false);
                   navigate("/leaderboard");
                 }}
-                className="w-full flex items-center space-x-3 px-4 py-3 text-white hover:bg-black/20 rounded-lg transition-colors"
+                className="w-full flex items-center space-x-3 px-4 py-3 text-white hover:bg-white/20 backdrop-blur-sm bg-white/10 border border-white/10 rounded-lg transition-colors"
               >
                 <Trophy className="w-5 h-5" />
                 <span className="text-lg">Leaderboard</span>

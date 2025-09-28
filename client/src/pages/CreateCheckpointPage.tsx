@@ -4,25 +4,11 @@ import { MapPin, Save, ArrowLeft, Upload, Image } from "lucide-react";
 import mapboxgl from "mapbox-gl";
 import { useAuthStore } from "../stores/authStore";
 import LocationConfirmModal from "../components/ui/LocationConfirmModal";
+import { addCheckpoint, type Checkpoint } from "../utils/checkpoints";
 
 // Mapbox access token - you'll need to set this
 const MAPBOX_TOKEN =
   import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || "your-mapbox-token";
-
-interface Checkpoint {
-  id: string;
-  latitude: number;
-  longitude: number;
-  name: string;
-  createdAt: string;
-  // Sponsor fields
-  sponsorName?: string;
-  description?: string;
-  logoUrl?: string;
-  reward?: number;
-  task?: string;
-  participations?: number;
-}
 
 const CreateCheckpointPage: React.FC = () => {
   const navigate = useNavigate();
@@ -233,16 +219,14 @@ const CreateCheckpointPage: React.FC = () => {
       }),
     };
 
-    // Get existing checkpoints from localStorage
-    const existingCheckpoints = JSON.parse(
-      localStorage.getItem("checkpoints") || "[]"
-    );
-
-    // Add new checkpoint
-    const updatedCheckpoints = [...existingCheckpoints, checkpoint];
-
-    // Save to localStorage
-    localStorage.setItem("checkpoints", JSON.stringify(updatedCheckpoints));
+    // Add new checkpoint using utility function
+    const success = addCheckpoint(checkpoint);
+    
+    if (!success) {
+      alert("Failed to save checkpoint. Please try again.");
+      setIsLoading(false);
+      return;
+    }
 
     setTimeout(() => {
       setIsLoading(false);

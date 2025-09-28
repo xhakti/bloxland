@@ -1,5 +1,5 @@
 import "../App.css";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { useAuthStore } from "../stores/authStore";
@@ -11,21 +11,6 @@ const MiniGamesPage = () => {
   const { isAuthenticated, isConnected, isOnCorrectNetwork, username } =
     useAuthStore();
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
-  const [autoStart, setAutoStart] = useState(false);
-
-  // Auto-start a random game when coming from checkpoint
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('autoStart') === 'true') {
-      setAutoStart(true);
-      // Randomly select one of the three games
-      const gameIds = ['dice', 'highlow', 'evenodd'];
-      const randomGameId = gameIds[Math.floor(Math.random() * gameIds.length)];
-      setTimeout(() => {
-        setSelectedGame(randomGameId);
-      }, 1000); // Small delay for better UX
-    }
-  }, []);
 
   const games = [
     {
@@ -126,7 +111,7 @@ const MiniGamesPage = () => {
                 transition={{ duration: 0.6 }}
               />
               <motion.p
-                className="text-xl sm:text-2xl font-bold ml-2 group-hover:text-neutral-300 transition-colors"
+                className="text-xl sm:text-2xl font-bold ml-2 group-hover:text-yellow-400 transition-colors"
                 whileHover={{ scale: 1.05 }}
               >
                 BLOXLAND
@@ -184,7 +169,7 @@ const MiniGamesPage = () => {
                     variants={itemVariants}
                   >
                     <motion.h1
-                      className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-4 font-parkinsans"
+                      className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-4"
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       transition={{
@@ -194,13 +179,13 @@ const MiniGamesPage = () => {
                         stiffness: 200,
                       }}
                     >
-                      {autoStart ? 'Challenge Started!' : 'Mini Games'}
+                      Mini Games
                     </motion.h1>
                     <motion.p
-                      className="text-lg sm:text-xl text-neutral-300 max-w-2xl mx-auto font-lexend"
+                      className="text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto"
                       variants={itemVariants}
                     >
-                      {autoStart ? 'Choose any one game to play and win! 🎯' : 'Test your intuition and luck ✨'}
+                      Test your intuition and luck ✨
                     </motion.p>
                   </motion.div>
 
@@ -225,7 +210,7 @@ const MiniGamesPage = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.6 + index * 0.1, duration: 0.6 }}
                       >
-                        <div className="rounded-2xl p-8 h-full group-hover:bg-black/70 transition-all duration-300 border border-white/10" style={{ backgroundColor: "#000000", opacity: 1, backgroundImage: "linear-gradient(#131313 2px, transparent 2px), linear-gradient(90deg, #131313 2px, transparent 2px), linear-gradient(#131313 1px, transparent 1px), linear-gradient(90deg, #131313 1px, #000000 1px)", backgroundSize: "50px 50px, 50px 50px, 10px 10px, 10px 10px", backgroundPosition: "-2px -2px, -2px -2px, -1px -1px, -1px -1px" }}>
+                        <div className="bg-black/90 backdrop-blur-sm rounded-2xl p-8 h-full group-hover:bg-black/70 transition-all duration-300 grid-bg border border-white/10">
                           <div className="text-center">
                             <motion.div
                               className="text-6xl mb-6"
@@ -237,14 +222,14 @@ const MiniGamesPage = () => {
                             >
                               {game.icon}
                             </motion.div>
-                            <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-white transition-colors font-parkinsans">
+                            <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-white transition-colors">
                               {game.title}
                             </h3>
-                            <p className="text-neutral-300 text-base mb-6 group-hover:text-neutral-200 transition-colors font-lexend">
+                            <p className="text-gray-300 text-base mb-6 group-hover:text-gray-200 transition-colors">
                               {game.description}
                             </p>
                             <motion.div
-                              className="px-6 py-3 bg-white text-black hover:bg-neutral-100 font-semibold rounded-xl transition-all inline-block font-lexend"
+                              className={`px-6 py-3 ${game.id === 'highlow' ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-800 border-2 border-white'} font-semibold rounded-xl transition-all inline-block`}
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
                             >
@@ -273,12 +258,12 @@ const MiniGamesPage = () => {
                   >
                     <motion.button
                       onClick={handleBackToMenu}
-                      className="flex items-center space-x-3 text-white hover:text-neutral-300 transition-colors group"
+                      className="flex items-center space-x-3 text-white hover:text-yellow-400 transition-colors group"
                       whileHover={{ x: -5 }}
                       whileTap={{ scale: 0.95 }}
                     >
                       <motion.svg
-                        className="w-6 h-6 group-hover:text-neutral-300"
+                        className="w-6 h-6 group-hover:text-yellow-400"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"

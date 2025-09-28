@@ -5,21 +5,7 @@ import { AvatarLayer } from '../player/AvatarLayer';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import CheckpointModal from '../ui/CheckpointModal';
 import LocationIcon from '../../assets/location.svg';
-
-interface Checkpoint {
-    id: string;
-    latitude: number;
-    longitude: number;
-    name: string;
-    createdAt: string;
-    // Sponsor fields
-    sponsorName?: string;
-    description?: string;
-    logoUrl?: string;
-    reward?: number;
-    task?: string;
-    participations?: number;
-}
+import { getAllCheckpoints, type Checkpoint } from '../../utils/checkpoints';
 
 interface MapContainerProps {
     onUserLocationChange?: (location: [number, number] | null) => void;
@@ -139,11 +125,8 @@ const MapContainer: React.FC<MapContainerProps> = ({
         if (!showCheckpoints) return;
 
         try {
-            const savedCheckpoints = localStorage.getItem('checkpoints');
-            if (savedCheckpoints) {
-                const parsedCheckpoints: Checkpoint[] = JSON.parse(savedCheckpoints);
-                setCheckpoints(parsedCheckpoints);
-            }
+            const allCheckpoints = getAllCheckpoints();
+            setCheckpoints(allCheckpoints);
         } catch (error) {
             console.error('Error loading checkpoints:', error);
         }
@@ -156,7 +139,20 @@ const MapContainer: React.FC<MapContainerProps> = ({
         const el = document.createElement('div');
         el.className = 'checkpoint-marker cursor-pointer';
 
-        if (checkpoint.sponsorName) {
+        if (checkpoint.isBloxlandProvided) {
+            // Bloxland provided checkpoints - special styling
+            el.innerHTML = `
+        <div class="bg-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg border-2 border-white hover:scale-110 transition-transform">
+          <img src="./logo.png" alt="Bloxland" class="w-8 h-8" />
+        </div>
+        <div class="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-2 py-1 rounded text-xs whitespace-nowrap">
+          ${checkpoint.name}<br>
+          <span class="text-neutral-300">Bloxland</span><br>
+          50 Energy Points
+        </div>
+      `;
+        } else if (checkpoint.sponsorName) {
+            // Sponsor checkpoints
             el.innerHTML = `
         <div class="bg-gradient-to-br from-blue-500 to-purple-600 rounded-full w-12 h-12 flex items-center justify-center shadow-lg border-2 border-white hover:scale-110 transition-transform">
           ${checkpoint.logoUrl
@@ -171,6 +167,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
         </div>
       `;
         } else {
+            // User created checkpoints
             el.innerHTML = `
         <div class="bg-green-500 rounded-full w-10 h-10 flex items-center justify-center shadow-lg border-2 border-white hover:scale-110 transition-transform">
           <span class="text-white font-bold">✓</span>

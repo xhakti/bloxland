@@ -1,9 +1,10 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { wagmiAdapter } from './config/appkit';
 import { useAuthStore, useAuthSync } from './stores/authStore';
+import { initializeBloxlandCheckpoints } from './utils/checkpoints';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 
 // Lazy load components to prevent circular imports
@@ -53,8 +54,14 @@ const AuthWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 // Protected route component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isLoading, isInitialized } = useAuthStore();
 
+  // Show loading while auth state is being initialized
+  if (!isInitialized || isLoading) {
+    return <PageLoader />;
+  }
+
+  // Only redirect if we're sure the user is not authenticated
   if (!isAuthenticated) {
     return <Navigate to="/connect" replace />;
   }
@@ -64,6 +71,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 // Main App component
 const App: React.FC = () => {
+  // Initialize Bloxland checkpoints on app start
+  useEffect(() => {
+    initializeBloxlandCheckpoints();
+  }, []);
+
   if (!wagmiAdapter?.wagmiConfig) {
     return <PageLoader />;
   }

@@ -1,20 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Users, Trophy, Eye, Calendar, Coins } from 'lucide-react';
-
-interface Checkpoint {
-  id: string;
-  latitude: number;
-  longitude: number;
-  name: string;
-  createdAt: string;
-  sponsorName?: string;
-  description?: string;
-  logoUrl?: string;
-  reward?: number;
-  task?: string;
-  participations?: number;
-}
+import { getUserCheckpoints, type Checkpoint } from '../utils/checkpoints';
 
 const SponsorDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -31,23 +18,19 @@ const SponsorDashboard: React.FC = () => {
 
   const loadCheckpoints = () => {
     try {
-      const savedCheckpoints = localStorage.getItem('checkpoints');
-      if (savedCheckpoints) {
-        const allCheckpoints: Checkpoint[] = JSON.parse(savedCheckpoints);
-        // Filter only sponsor checkpoints (ones with sponsorName)
-        const sponsorCheckpoints = allCheckpoints.filter(cp => cp.sponsorName);
-        setCheckpoints(sponsorCheckpoints);
-        
-        // Calculate stats
-        const totalParticipations = sponsorCheckpoints.reduce((sum, cp) => sum + (cp.participations || 0), 0);
-        const totalRewardsDistributed = totalParticipations * 100; // 100 tokens per participation
-        
-        setStats({
-          totalCheckpoints: sponsorCheckpoints.length,
-          totalParticipations,
-          totalRewardsDistributed,
-        });
-      }
+      // Get only sponsor checkpoints (ones with sponsorName)
+      const sponsorCheckpoints = getUserCheckpoints().filter(cp => cp.sponsorName);
+      setCheckpoints(sponsorCheckpoints);
+      
+      // Calculate stats
+      const totalParticipations = sponsorCheckpoints.reduce((sum, cp) => sum + (cp.participations || 0), 0);
+      const totalRewardsDistributed = totalParticipations * 100; // 100 tokens per participation
+      
+      setStats({
+        totalCheckpoints: sponsorCheckpoints.length,
+        totalParticipations,
+        totalRewardsDistributed,
+      });
     } catch (error) {
       console.error('Error loading checkpoints:', error);
     }

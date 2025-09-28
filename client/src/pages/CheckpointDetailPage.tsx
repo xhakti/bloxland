@@ -1,20 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, MapPin, Users, Coins, Trophy, Calendar, Play, ExternalLink } from 'lucide-react';
-
-interface Checkpoint {
-  id: string;
-  latitude: number;
-  longitude: number;
-  name: string;
-  createdAt: string;
-  sponsorName?: string;
-  description?: string;
-  logoUrl?: string;
-  reward?: number;
-  task?: string;
-  participations?: number;
-}
+import { getAllCheckpoints, type Checkpoint } from '../utils/checkpoints';
 
 const CheckpointDetailPage: React.FC = () => {
   const navigate = useNavigate();
@@ -28,9 +15,8 @@ const CheckpointDetailPage: React.FC = () => {
 
   const loadCheckpoint = () => {
     try {
-      const savedCheckpoints = localStorage.getItem('checkpoints');
-      if (savedCheckpoints && id) {
-        const allCheckpoints: Checkpoint[] = JSON.parse(savedCheckpoints);
+      if (id) {
+        const allCheckpoints = getAllCheckpoints();
         const foundCheckpoint = allCheckpoints.find(cp => cp.id === id);
         setCheckpoint(foundCheckpoint || null);
       }

@@ -84,8 +84,11 @@ export const useAuthStore = create<AuthState>()(
           isOnCorrectNetwork,
         });
 
-        // Clear auth if disconnected or wrong network
-        if (!connected || !isOnCorrectNetwork) {
+        // Only clear auth if wallet is disconnected AND we're initialized
+        // Don't clear auth just for wrong network - let user switch networks
+        const currentState = get();
+        if (!connected && currentState.isInitialized) {
+          console.log("[AuthStore] Wallet disconnected, clearing auth data");
           set({
             isAuthenticated: false,
             address: null,

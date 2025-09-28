@@ -1,19 +1,7 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, MapPin, Users, Coins, Trophy, Calendar, Play, ExternalLink } from 'lucide-react';
-
-interface Checkpoint {
-  id: string;
-  latitude: number;
-  longitude: number;
-  name: string;
-  createdAt: string;
-  sponsorName?: string;
-  description?: string;
-  logoUrl?: string;
-  reward?: number;
-  task?: string;
-  participations?: number;
-}
+import { type Checkpoint } from '../../utils/checkpoints';
 
 interface CheckpointModalProps {
   isOpen: boolean;
@@ -30,6 +18,8 @@ const CheckpointModal: React.FC<CheckpointModalProps> = ({
   onStartTask,
   onViewOnMap,
 }) => {
+  const navigate = useNavigate();
+  
   if (!isOpen || !checkpoint) return null;
 
   const formatDate = (dateString: string) => {
@@ -42,8 +32,8 @@ const CheckpointModal: React.FC<CheckpointModalProps> = ({
 
   const handleStartTask = () => {
     onStartTask?.();
-    // TODO: Navigate to Stone Paper Scissors game
-    alert('Stone Paper Scissors game would start here!');
+    // Navigate to mini-games page with autoStart parameter
+    navigate('/mini-games?autoStart=true');
   };
 
   return (
@@ -65,7 +55,11 @@ const CheckpointModal: React.FC<CheckpointModalProps> = ({
           {/* Checkpoint Header */}
           <div className="flex items-start space-x-4">
             {/* Logo */}
-            {checkpoint.logoUrl ? (
+            {checkpoint.isBloxlandProvided ? (
+              <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center border border-white/20 flex-shrink-0">
+                <img src="./logo.png" alt="Bloxland" className="w-10 h-10" />
+              </div>
+            ) : checkpoint.logoUrl ? (
               <div className="w-16 h-16 bg-white/10 rounded-lg overflow-hidden border border-white/20 flex-shrink-0">
                 <img
                   src={checkpoint.logoUrl}
@@ -82,13 +76,19 @@ const CheckpointModal: React.FC<CheckpointModalProps> = ({
             {/* Info */}
             <div className="flex-1">
               <h3 className="text-xl font-bold text-white mb-2">{checkpoint.name}</h3>
-              {checkpoint.sponsorName && (
+              {checkpoint.isBloxlandProvided ? (
+                <div className="flex items-center space-x-2 mb-3">
+                  <span className="text-sm bg-neutral-600/20 text-neutral-300 px-3 py-1 rounded-full">
+                    Provided by Bloxland
+                  </span>
+                </div>
+              ) : checkpoint.sponsorName ? (
                 <div className="flex items-center space-x-2 mb-3">
                   <span className="text-sm bg-yellow-400/20 text-yellow-400 px-3 py-1 rounded-full">
                     Sponsored by {checkpoint.sponsorName}
                   </span>
                 </div>
-              )}
+              ) : null}
               {checkpoint.description && (
                 <p className="text-gray-300 text-sm leading-relaxed">{checkpoint.description}</p>
               )}
@@ -97,29 +97,51 @@ const CheckpointModal: React.FC<CheckpointModalProps> = ({
 
           {/* Task Section */}
           {checkpoint.task && (
-            <div className="bg-gradient-to-r from-yellow-400/10 to-yellow-600/10 border border-yellow-400/20 rounded-lg p-4">
+            <div className={`rounded-lg p-4 ${
+              checkpoint.isBloxlandProvided 
+                ? "bg-gradient-to-r from-neutral-600/10 to-neutral-800/10 border border-neutral-600/20"
+                : "bg-gradient-to-r from-yellow-400/10 to-yellow-600/10 border border-yellow-400/20"
+            }`}>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-yellow-400/20 rounded-full flex items-center justify-center">
-                    <Trophy className="w-5 h-5 text-yellow-400" />
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    checkpoint.isBloxlandProvided 
+                      ? "bg-neutral-600/20" 
+                      : "bg-yellow-400/20"
+                  }`}>
+                    <Trophy className={`w-5 h-5 ${
+                      checkpoint.isBloxlandProvided 
+                        ? "text-neutral-300" 
+                        : "text-yellow-400"
+                    }`} />
                   </div>
                   <div>
                     <h4 className="text-white font-semibold">{checkpoint.task}</h4>
-                    <p className="text-gray-300 text-sm">Interactive mini-game</p>
+                    <p className="text-gray-300 text-sm">
+                      {checkpoint.isBloxlandProvided ? "Bloxland Challenge" : "Interactive mini-game"}
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="flex items-center space-x-1 text-yellow-400">
+                  <div className={`flex items-center space-x-1 ${
+                    checkpoint.isBloxlandProvided 
+                      ? "text-neutral-300" 
+                      : "text-yellow-400"
+                  }`}>
                     <Coins className="w-4 h-4" />
-                    <span className="text-lg font-bold">{checkpoint.reward || 100}</span>
+                    <span className="text-lg font-bold">{checkpoint.isBloxlandProvided ? "50" : (checkpoint.reward || 100)}</span>
                   </div>
-                  <p className="text-gray-400 text-xs">Token Reward</p>
+                  <p className="text-gray-400 text-xs">{checkpoint.isBloxlandProvided ? "Energy Points" : "Token Reward"}</p>
                 </div>
               </div>
 
               <button
                 onClick={handleStartTask}
-                className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-yellow-400 hover:bg-yellow-500 text-black font-bold rounded-lg transition-colors"
+                className={`w-full flex items-center justify-center space-x-2 px-4 py-3 font-bold rounded-lg transition-colors ${
+                  checkpoint.isBloxlandProvided 
+                    ? "bg-white hover:bg-neutral-100 text-black" 
+                    : "bg-yellow-400 hover:bg-yellow-500 text-black"
+                }`}
               >
                 <Play className="w-4 h-4" />
                 <span>Start Challenge</span>
@@ -128,23 +150,13 @@ const CheckpointModal: React.FC<CheckpointModalProps> = ({
           )}
 
           {/* Stats */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <div className="bg-white/5 border border-white/10 rounded-lg p-4">
               <div className="flex items-center space-x-2 mb-2">
                 <Users className="w-4 h-4 text-blue-400" />
                 <span className="text-gray-300 text-sm">Participations</span>
               </div>
               <p className="text-white text-xl font-bold">{checkpoint.participations || 0}</p>
-            </div>
-
-            <div className="bg-white/5 border border-white/10 rounded-lg p-4">
-              <div className="flex items-center space-x-2 mb-2">
-                <Coins className="w-4 h-4 text-yellow-400" />
-                <span className="text-gray-300 text-sm">Total Rewards</span>
-              </div>
-              <p className="text-yellow-400 text-xl font-bold">
-                {((checkpoint.participations || 0) * (checkpoint.reward || 100)).toLocaleString()}
-              </p>
             </div>
           </div>
 
