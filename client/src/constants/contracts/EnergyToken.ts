@@ -1,5 +1,5 @@
 export const ENERGY_TOKEN_CONTRACT_ADDRESS =
-  "0x38A141E936EFB5ECAc25993C6b71CfEFEd5182F8";
+  "0x2D409f9f33d13c441b4D6a0582780E24391A842b";
 export const ENERGY_TOKEN_CONTRACT_ABI = [
   {
     inputs: [{ internalType: "address", name: "_signer", type: "address" }],
