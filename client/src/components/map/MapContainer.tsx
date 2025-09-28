@@ -33,6 +33,7 @@ const MapContainerComponent: React.FC<MapContainerProps> = ({
 
     const [isLoading, setIsLoading] = useState(true);
     const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+    const lastGoodLocationRef = useRef<[number, number] | null>(null);
     const [loadingStatus, setLoadingStatus] = useState('Initializing...');
     const [is3D, setIs3D] = useState(true);
     const [isFollowingUser, setIsFollowingUser] = useState(false);
@@ -512,6 +513,54 @@ const MapContainerComponent: React.FC<MapContainerProps> = ({
         };
     }, [mapReady]);
 
+    // Recovery watchdog: if current location is null or (0,0) for prolonged time, attempt to refetch and restore last good
+    useEffect(() => {
+        if (!mapReady) return;
+        let attempts = 0;
+        const MAX_ATTEMPTS = 30; // stops after ~5 minutes (interval 10s)
+        const interval = window.setInterval(() => {
+            const current = userLocation;
+            const isInvalid = !current || (current[0] === 0 && current[1] === 0);
+            if (!isInvalid) return; // fine
+            attempts++;
+            if (attempts > MAX_ATTEMPTS) {
+                window.clearInterval(interval);
+                return;
+            }
+            if ('geolocation' in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        const fix: [number, number] = [pos.coords.longitude, pos.coords.latitude];
+                        if (fix[0] === 0 && fix[1] === 0 && lastGoodLocationRef.current) {
+                            // Use stored good instead of ocean
+                            setUserLocation(lastGoodLocationRef.current);
+                            onUserLocationChange?.(lastGoodLocationRef.current);
+                            if (avatarLayerRef.current) avatarLayerRef.current.updatePosition(lastGoodLocationRef.current);
+                            return;
+                        }
+                        setUserLocation(fix);
+                        onUserLocationChange?.(fix);
+                        if (!(fix[0] === 0 && fix[1] === 0)) {
+                            lastGoodLocationRef.current = fix;
+                            try { localStorage.setItem('bloxland-last-location', JSON.stringify(fix)); } catch { /* ignore */ }
+                        }
+                        if (avatarLayerRef.current) avatarLayerRef.current.updatePosition(fix);
+                    },
+                    () => {
+                        // On failure, if we have a last good and current invalid, restore it visibly
+                        if (lastGoodLocationRef.current && isInvalid) {
+                            setUserLocation(lastGoodLocationRef.current);
+                            onUserLocationChange?.(lastGoodLocationRef.current);
+                            if (avatarLayerRef.current) avatarLayerRef.current.updatePosition(lastGoodLocationRef.current);
+                        }
+                    },
+                    { enableHighAccuracy: true, timeout: 7000 }
+                );
+            }
+        }, 10000); // every 10s
+        return () => window.clearInterval(interval);
+    }, [mapReady, userLocation, onUserLocationChange]);
+
     // Listen for localStorage changes
     useEffect(() => {
         if (!showCheckpoints) return;
@@ -577,6 +626,11 @@ const MapContainerComponent: React.FC<MapContainerProps> = ({
                             const location: [number, number] = [longitude, latitude];
                             lastWatchUpdateRef.time = performance.now();
 
+                            // Reject obviously invalid (0,0) unless no last good exists
+                            if (location[0] === 0 && location[1] === 0 && lastGoodLocationRef.current) {
+                                return; // ignore ocean glitch
+                            }
+
                             // Smaller threshold for higher precision updates
                             const lngDelta = Math.abs((userLocation?.[0] ?? longitude) - longitude);
                             const latDelta = Math.abs((userLocation?.[1] ?? latitude) - latitude);
@@ -600,6 +654,8 @@ const MapContainerComponent: React.FC<MapContainerProps> = ({
                                 console.log('Location updated to:', location);
                                 setUserLocation(location);
                                 onUserLocationChange?.(location);
+                                lastGoodLocationRef.current = location;
+                                try { localStorage.setItem('bloxland-last-location', JSON.stringify(location)); } catch { /* ignore */ }
                                 setIsFollowingUser(true);
 
                                 // Movement-based walking animation control
@@ -652,15 +708,19 @@ const MapContainerComponent: React.FC<MapContainerProps> = ({
                                     lastWatchUpdateRef.time = performance.now();
                                     const { latitude, longitude } = position.coords;
                                     const location: [number, number] = [longitude, latitude];
-                                    setUserLocation((prevLoc) => {
-                                        if (!prevLoc || Math.abs(prevLoc[0] - location[0]) > GEO_MIN_MOVEMENT_DEG || Math.abs(prevLoc[1] - location[1]) > GEO_MIN_MOVEMENT_DEG) {
-                                            onUserLocationChange?.(location);
-                                            if (avatarLayerRef.current) {
-                                                avatarLayerRef.current.updatePosition(location);
+                                    if (!(location[0] === 0 && location[1] === 0 && lastGoodLocationRef.current)) {
+                                        setUserLocation((prevLoc) => {
+                                            if (!prevLoc || Math.abs(prevLoc[0] - location[0]) > GEO_MIN_MOVEMENT_DEG || Math.abs(prevLoc[1] - location[1]) > GEO_MIN_MOVEMENT_DEG) {
+                                                onUserLocationChange?.(location);
+                                                lastGoodLocationRef.current = location;
+                                                try { localStorage.setItem('bloxland-last-location', JSON.stringify(location)); } catch { /* ignore */ }
+                                                if (avatarLayerRef.current) {
+                                                    avatarLayerRef.current.updatePosition(location);
+                                                }
                                             }
-                                        }
-                                        return location;
-                                    });
+                                            return location;
+                                        });
+                                    }
                                 },
                                 () => { /* ignore polling errors */ },
                                 { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
@@ -681,6 +741,20 @@ const MapContainerComponent: React.FC<MapContainerProps> = ({
                 setLoadingStatus('Getting location...');
                 setMapReady(true); // enable lighting effect
 
+                // Attempt to load last known good location from storage immediately
+                try {
+                    const stored = localStorage.getItem('bloxland-last-location');
+                    if (stored) {
+                        const parsedUnknown = JSON.parse(stored);
+                        if (Array.isArray(parsedUnknown) && parsedUnknown.length === 2 && typeof parsedUnknown[0] === 'number' && typeof parsedUnknown[1] === 'number') {
+                            const parsed = [parsedUnknown[0], parsedUnknown[1]] as [number, number];
+                            lastGoodLocationRef.current = parsed;
+                            setUserLocation(parsed);
+                            onUserLocationChange?.(parsed);
+                        }
+                    }
+                } catch { /* ignore */ }
+
                 if ('geolocation' in navigator) {
                     navigator.geolocation.getCurrentPosition(
                         (position) => {
@@ -689,6 +763,10 @@ const MapContainerComponent: React.FC<MapContainerProps> = ({
                             console.log('Initial location obtained:', location);
                             setUserLocation(location);
                             onUserLocationChange?.(location);
+                            if (!(location[0] === 0 && location[1] === 0)) {
+                                lastGoodLocationRef.current = location;
+                                try { localStorage.setItem('bloxland-last-location', JSON.stringify(location)); } catch { /* ignore */ }
+                            }
 
                             preloadAvatarAndFly(map, location);
 
@@ -697,7 +775,8 @@ const MapContainerComponent: React.FC<MapContainerProps> = ({
                         },
                         (error) => {
                             console.warn('Geolocation error:', error);
-                            const fallbackLocation: [number, number] = [28.556308, 77.044288];
+                            // Use last good location if available, else fallback to a default city center
+                            const fallbackLocation: [number, number] = lastGoodLocationRef.current || [28.556308, 77.044288];
                             setUserLocation(fallbackLocation);
                             onUserLocationChange?.(fallbackLocation);
                             preloadAvatarAndFly(map, fallbackLocation);
@@ -706,7 +785,7 @@ const MapContainerComponent: React.FC<MapContainerProps> = ({
                     );
                 } else {
                     console.warn('Geolocation not available');
-                    const defaultLocation: [number, number] = [0, 0];
+                    const defaultLocation: [number, number] = lastGoodLocationRef.current || [28.556308, 77.044288];
                     setUserLocation(defaultLocation);
                     onUserLocationChange?.(defaultLocation);
                     preloadAvatarAndFly(map, defaultLocation);
