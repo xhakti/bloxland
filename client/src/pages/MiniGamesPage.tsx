@@ -1,7 +1,7 @@
 import "../App.css";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { useAuthStore } from "../stores/authStore";
 import GuessTheDice from "../components/minigames/GuessTheDice";
 import HighLow from "../components/minigames/HighLow";
@@ -54,7 +54,7 @@ const MiniGamesPage = () => {
     ? games.find((game) => game.id === selectedGame)?.component
     : null;
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     initial: { opacity: 0 },
     animate: {
       opacity: 1,
@@ -65,14 +65,15 @@ const MiniGamesPage = () => {
     },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     initial: { opacity: 0, y: 20 },
     animate: {
       opacity: 1,
       y: 0,
       transition: {
         duration: 0.5,
-        ease: "easeOut",
+        // Use a cubic bezier easing array accepted by framer-motion (same feel as easeOut)
+        ease: [0.04, 0.62, 0.23, 0.98],
       },
     },
   };

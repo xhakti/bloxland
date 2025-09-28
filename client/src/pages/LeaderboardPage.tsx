@@ -156,14 +156,13 @@ const LeaderboardPage = () => {
                   <div className="bg-white/10 px-6 py-4 border-b border-white/20">
                     <h2 className="text-lg font-semibold text-white">Top Explorers</h2>
                   </div>
-                  
+
                   <div className="divide-y divide-white/10">
                     {data.data.users.map((user, index) => (
                       <div
                         key={user.id}
-                        className={`px-6 py-4 hover:bg-white/5 transition-colors ${
-                          user.userAddress === address ? "bg-white/10 border-l-4 border-white" : ""
-                        }`}
+                        className={`px-6 py-4 hover:bg-white/5 transition-colors ${user.userAddress === address ? "bg-blue-500/20 border-l-4 border-blue-400" : ""
+                          }`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-4">
@@ -220,7 +219,7 @@ const LeaderboardPage = () => {
                 {data.data.pagination && (
                   <div className="text-center text-sm text-gray-400">
                     Showing {data.data.users.length} of {data.data.pagination.totalCount} players
-                    {data.data.pagination.hasNextPage && (
+                    {(data.data.pagination.page < data.data.pagination.totalPages) && (
                       <span className="ml-2">• More players available</span>
                     )}
                   </div>
