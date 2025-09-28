@@ -104,7 +104,7 @@ export const useConnectPageAuth = () => {
     // If fully authenticated and connected, redirect to game
     if (isAuthenticated && isConnected && isOnCorrectNetwork) {
       log("Already authenticated and connected, redirecting to game");
-      navigate("/game-integrations");
+      navigate("/game");
       return;
     }
 
@@ -256,7 +256,7 @@ export const useConnectPageAuth = () => {
 
             setTimeout(() => {
               log("Navigating to game");
-              navigate("/game-integrations");
+              navigate("/game");
             }, 1500);
           } else {
             log("No existing user found, proceeding to username step");
@@ -439,7 +439,7 @@ export const useConnectPageAuth = () => {
       setShowOverlay(true);
       setTimeout(() => {
         log("Navigating to game after registration");
-        navigate("/game-integrations");
+        navigate("/game");
       }, 1500);
     } catch (error: any) {
       log("User registration failed:", error);
@@ -590,7 +590,7 @@ export const useConnectPageAuth = () => {
             // Existing user skips username entirely
             setAuthState((prev) => ({ ...prev, step: "complete" }));
             setShowOverlay(true);
-            setTimeout(() => navigate("/game-integrations"), 1200);
+            setTimeout(() => navigate("/game"), 1200);
           } else {
             // New user now chooses username after location
             setAuthState((prev) => ({ ...prev, step: "username" }));

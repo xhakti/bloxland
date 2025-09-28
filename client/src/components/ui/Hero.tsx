@@ -182,7 +182,7 @@ const Hero = () => {
 
             {/* Player Stats Preview (if authenticated) */}
             {isAuthenticated && isOnCorrectNetwork && (
-              <div className="mt-6 p-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg max-w-sm">
+              <div className="mt-6 p-4 grid-bg border border-white/10 rounded-lg max-w-sm backdrop-blur-sm">
                 <h3 className="text-sm font-semibold text-white mb-2">
                   Player Status
                 </h3>

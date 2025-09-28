@@ -35,29 +35,30 @@ const LeaderboardPage = () => {
   const getRankColor = (index: number) => {
     switch (index) {
       case 0:
-        return "text-yellow-400";
+        return "text-white";
       case 1:
         return "text-gray-300";
       case 2:
-        return "text-orange-400";
-      default:
         return "text-gray-400";
+      default:
+        return "text-gray-500";
     }
   };
 
   return (
-    <div
-      className="min-h-[100dvh] w-full text-white overflow-x-hidden"
-      style={{
-        backgroundColor: "#000000",
-        opacity: 1,
-        backgroundImage:
-          "radial-gradient(#3a3838 0.5px, transparent 0.5px), radial-gradient(#3a3838 0.5px, #000000 0.5px)",
-        backgroundSize: "20px 20px",
-        backgroundPosition: "0 0, 10px 10px",
-      }}
-    >
-      <div className="min-h-[100dvh] w-full">
+    <div className="min-h-[100dvh] w-full text-white overflow-x-hidden relative" style={{ backgroundColor: "#000000" }}>
+      {/* Background Image with low opacity */}
+      <div
+        className="absolute inset-0 w-full h-full grayscale-75"
+        style={{
+          backgroundImage: "url('./bg.jpeg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          opacity: 0.05,
+        }}
+      ></div>
+      <div className="min-h-[100dvh] w-full relative z-10">
         {/* Header */}
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center">
@@ -72,21 +73,21 @@ const LeaderboardPage = () => {
             <div className="hidden sm:flex items-center space-x-2 text-xs overflow-hidden">
               {isAuthenticated && isOnCorrectNetwork ? (
                 <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  <span className="text-green-400">Authenticated</span>
+                  <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                  <span className="text-white">Authenticated</span>
                   {username && (
                     <span className="text-gray-400">({username})</span>
                   )}
                 </div>
               ) : isConnected && !isOnCorrectNetwork ? (
                 <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                  <span className="text-yellow-400">Wrong Network</span>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+                  <span className="text-gray-400">Wrong Network</span>
                 </div>
               ) : (
                 <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
-                  <span className="text-orange-400">Setup Incomplete</span>
+                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div>
+                  <span className="text-gray-500">Setup Incomplete</span>
                 </div>
               )}
             </div>
@@ -116,9 +117,9 @@ const LeaderboardPage = () => {
             {/* Error State */}
             {error && (
               <div className="text-center py-12">
-                <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-6 max-w-md mx-auto">
-                  <h3 className="text-red-400 font-semibold mb-2">Error Loading Leaderboard</h3>
-                  <p className="text-red-300 text-sm">
+                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 max-w-md mx-auto">
+                  <h3 className="text-white font-semibold mb-2">Error Loading Leaderboard</h3>
+                  <p className="text-gray-300 text-sm">
                     {error.message || "Failed to load leaderboard data"}
                   </p>
                 </div>
@@ -155,14 +156,13 @@ const LeaderboardPage = () => {
                   <div className="bg-white/10 px-6 py-4 border-b border-white/20">
                     <h2 className="text-lg font-semibold text-white">Top Explorers</h2>
                   </div>
-                  
+
                   <div className="divide-y divide-white/10">
                     {data.data.users.map((user, index) => (
                       <div
                         key={user.id}
-                        className={`px-6 py-4 hover:bg-white/5 transition-colors ${
-                          user.userAddress === address ? "bg-blue-500/20 border-l-4 border-blue-400" : ""
-                        }`}
+                        className={`px-6 py-4 hover:bg-white/5 transition-colors ${user.userAddress === address ? "bg-blue-500/20 border-l-4 border-blue-400" : ""
+                          }`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-4">
@@ -178,7 +178,7 @@ const LeaderboardPage = () => {
                                   {user.username}
                                 </h3>
                                 {user.userAddress === address && (
-                                  <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                                  <span className="bg-white text-black text-xs px-2 py-1 rounded-full font-semibold">
                                     You
                                   </span>
                                 )}
@@ -219,7 +219,7 @@ const LeaderboardPage = () => {
                 {data.data.pagination && (
                   <div className="text-center text-sm text-gray-400">
                     Showing {data.data.users.length} of {data.data.pagination.totalCount} players
-                    {data.data.pagination.hasNextPage && (
+                    {(data.data.pagination.page < data.data.pagination.totalPages) && (
                       <span className="ml-2">• More players available</span>
                     )}
                   </div>
@@ -237,7 +237,7 @@ const LeaderboardPage = () => {
                   </p>
                   <Link
                     to="/connect"
-                    className="inline-block px-6 py-2 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+                    className="inline-block px-6 py-2 bg-white text-black font-semibold rounded-lg hover:bg-gray-200 transition-colors border-2 border-white"
                   >
                     Start Playing
                   </Link>
@@ -255,7 +255,7 @@ const LeaderboardPage = () => {
                   </p>
                   <Link
                     to="/connect"
-                    className="inline-block px-6 py-2 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+                    className="inline-block px-6 py-2 bg-white text-black font-semibold rounded-lg hover:bg-gray-200 transition-colors border-2 border-white"
                   >
                     Connect Wallet
                   </Link>

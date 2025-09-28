@@ -14,7 +14,7 @@ import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-contract Bloxland is EIP712 {
+contract Bloxland is EIP712, IEntropyConsumer {
   using SignatureChecker for address;
   using ECDSA for bytes32;
 
@@ -114,7 +114,7 @@ contract Bloxland is EIP712 {
     }
 
     if (theGame.random) {
-      uint32 gasLimit = 12500000;
+      uint32 gasLimit = 5000000;
 
       // Contract needs ETH to pay for random
       uint256 fee = entropy.getFeeV2(gasLimit);
@@ -173,7 +173,7 @@ contract Bloxland is EIP712 {
     uint64 sequenceNumber,
     address,
     bytes32 randomNumber
-  ) internal {
+  ) internal override {
     // Play memory thePlay = plays[sequenceNumber];
 
     // if (thePlay.player == address(0)) {
@@ -207,7 +207,7 @@ contract Bloxland is EIP712 {
       revert("Invalid answer");
     }
 
-    if (_result != -1 || _result != 1) {
+    if (_result != -1 && _result != 1) {
       revert("Invalid result");
     }
 
@@ -293,7 +293,7 @@ contract Bloxland is EIP712 {
     // https://docs.pyth.network/price-feeds/price-feeds
     PythStructs.Price memory btc = pyth.getPriceNoOlderThan(
       0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43,
-      60
+      6000
     );
 
     if (thePlay.gameId == GAME_BTC_GT) {
@@ -312,6 +312,10 @@ contract Bloxland is EIP712 {
   function _mapRandomNumber(bytes32 randomNumber, int256 minRange, int256 maxRange) pure internal returns (int256) {
     uint256 range = uint256(maxRange - minRange + 1);
     return minRange + int256(uint256(randomNumber) % range);
+  }
+
+  function getEntropy() internal view override returns (address) {
+    return address(entropy);
   }
 
   receive() external payable {}
