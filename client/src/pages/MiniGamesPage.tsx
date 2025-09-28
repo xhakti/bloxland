@@ -78,21 +78,24 @@ const MiniGamesPage = () => {
   };
 
   return (
-    <div
-      className="min-h-[100dvh] w-full text-white overflow-x-hidden"
-      style={{
-        backgroundColor: "#000000",
-        opacity: 1,
-        backgroundImage:
-          "radial-gradient(#3a3838 0.5px, transparent 0.5px), radial-gradient(#3a3838 0.5px, #000000 0.5px)",
-        backgroundSize: "20px 20px",
-        backgroundPosition: "0 0, 10px 10px",
-      }}
-    >
-      <div className="min-h-[100dvh] w-full">
+    <div className="w-full text-white overflow-x-hidden relative" style={{ backgroundColor: "#000000" }}>
+      {/* Background Image with low opacity */}
+      <div
+        className="absolute inset-0 w-full h-full grayscale-75"
+        style={{
+          backgroundImage: "url('./bg.jpeg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          opacity: 0.05,
+        }}
+      ></div>
+      
+      {/* Main Content */}
+      <div className="min-h-[100dvh] w-full relative z-10">
         {/* Header */}
         <motion.div
-          className="flex items-center justify-between p-4"
+          className="flex items-center justify-between p-6"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -126,9 +129,9 @@ const MiniGamesPage = () => {
               {isAuthenticated && isOnCorrectNetwork ? (
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  <span className="text-green-400">Connected</span>
+                  <span className="text-green-400">Authenticated</span>
                   {username && (
-                    <span className="text-gray-400">({username})</span>
+                    <span className="text-neutral-400">({username})</span>
                   )}
                 </div>
               ) : isConnected && !isOnCorrectNetwork ? (
@@ -139,7 +142,7 @@ const MiniGamesPage = () => {
               ) : (
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
-                  <span className="text-orange-400">Setup Required</span>
+                  <span className="text-orange-400">Setup Incomplete</span>
                 </div>
               )}
             </motion.div>
@@ -147,7 +150,7 @@ const MiniGamesPage = () => {
         </motion.div>
 
         {/* Main Content */}
-        <div className="h-[calc(100dvh-72px)] overflow-y-auto">
+        <div className="h-[calc(100dvh-96px)] overflow-y-auto">
           <div className="max-w-4xl mx-auto px-4 py-8">
             <AnimatePresence mode="wait">
               {!selectedGame ? (
@@ -206,7 +209,7 @@ const MiniGamesPage = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.6 + index * 0.1, duration: 0.6 }}
                       >
-                        <div className="bg-black/90 backdrop-blur-sm rounded-2xl p-8 h-full group-hover:bg-black/70 transition-all duration-300">
+                        <div className="bg-black/90 backdrop-blur-sm rounded-2xl p-8 h-full group-hover:bg-black/70 transition-all duration-300 grid-bg border border-white/10">
                           <div className="text-center">
                             <motion.div
                               className="text-6xl mb-6"
